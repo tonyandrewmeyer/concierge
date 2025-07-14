@@ -53,6 +53,10 @@ snapcrafts:
       - source: .github/concierge.png
         destination: concierge.png
         mode: 0644
+    apps:
+      concierge:
+        environment:
+          SNAPCRAFT_BUILD_INFO: 1
 
 checksum:
   name_template: "checksums.txt"

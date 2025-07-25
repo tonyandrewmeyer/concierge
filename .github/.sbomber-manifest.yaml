@@ -12,5 +12,6 @@ artifacts:
     type: 'snap'
     ssdlc_params:
         name: 'concierge'
+        version: ''
         channel: 'stable'
         cycle: '25.10'

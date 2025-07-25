@@ -10,9 +10,7 @@ clients:
 artifacts:
   - name: 'concierge'
     type: 'snap'
-    version: '40'
     ssdlc_params:
         name: 'concierge'
-        version: '40'
         channel: 'stable'
         cycle: '25.10'

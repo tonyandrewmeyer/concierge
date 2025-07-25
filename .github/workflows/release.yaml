@@ -139,4 +139,4 @@ jobs:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.STORE_TOKEN }}
 
   secscan:
-    uses: .github/workflows/secscan.yaml
+    uses: ./.github/workflows/secscan.yaml

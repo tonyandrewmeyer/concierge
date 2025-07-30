@@ -9,4 +9,5 @@ dist/
 /.idea
 # sbomber tool
 .statefile.yaml
+pkgs/
 

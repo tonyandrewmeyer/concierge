@@ -7,3 +7,6 @@
 dist/
 .spread-reuse*.yaml
 /.idea
+# sbomber tool
+.statefile.yaml
+

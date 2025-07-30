@@ -10,4 +10,4 @@ dist/
 # sbomber tool
 .statefile.yaml
 pkgs/
-
+reports/

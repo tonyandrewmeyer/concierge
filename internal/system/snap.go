@@ -1,10 +1,8 @@
 package system
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"os/exec"
 	"slices"
 	"strings"

@@ -130,11 +130,28 @@ func (s *System) parseChannelsFromSnapInfo(output string) []string {
 // parseConfinementFromSnapInfo checks if a snap uses classic confinement.
 func (s *System) parseConfinementFromSnapInfo(output, channel string) bool {
 	lines := strings.Split(output, "\n")
+	inChannelsSection := false
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if channel != "" && strings.Contains(line, channel) && strings.Contains(line, "classic") {
-			return true
+
+		if strings.Contains(line, "channels:") {
+			inChannelsSection = true
+			continue
+		}
+
+		if inChannelsSection && line != "" && !strings.HasPrefix(line, " ") && !strings.Contains(line, "/") {
+			break
+		}
+
+		if inChannelsSection && strings.Contains(line, "/") {
+			if channel != "" && strings.Contains(line, channel) {
+				return strings.Contains(line, "classic")
+			}
+
+			if channel == "" && strings.Contains(line, "classic") {
+				return true
+			}
 		}
 	}
 

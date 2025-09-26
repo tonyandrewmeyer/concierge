@@ -14,7 +14,7 @@ import (
 
 // Default channel from which MicroK8s is installed when the latest strict
 // version cannot be determined.
-const defaultMicroK8sChannel = "1.32-strict/stable"
+const defaultMicroK8sChannel = "1.34-strict/stable"
 
 // NewMicroK8s constructs a new MicroK8s provider instance.
 func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {

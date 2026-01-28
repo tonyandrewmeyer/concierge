@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/user"
@@ -28,6 +29,7 @@ func Execute() {
 func parseLoggingFlags(flags *pflag.FlagSet) {
 	verbose, _ := flags.GetBool("verbose")
 	trace, _ := flags.GetBool("trace")
+	dryRun, _ := flags.GetBool("dry-run")
 
 	logLevel := new(slog.LevelVar)
 
@@ -38,7 +40,13 @@ func parseLoggingFlags(flags *pflag.FlagSet) {
 	}
 
 	// Setup the TextHandler and ensure our configured logger is the default.
-	h := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})
+	var h slog.Handler
+	if dryRun {
+		// In dry-run mode, suppress all logging output
+		h = slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError + 1})
+	} else {
+		h = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})
+	}
 	logger := slog.New(h)
 	slog.SetDefault(logger)
 	logLevel.Set(level)

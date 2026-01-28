@@ -64,6 +64,8 @@ type K8s struct {
 // This includes installing the snap, enabling the user who ran concierge to interact
 // with K8s without sudo, and sets up the user's kubeconfig file.
 func (k *K8s) Prepare() error {
+	k.system.Print("Preparing K8s provider")
+
 	err := k.install()
 	if err != nil {
 		return fmt.Errorf("failed to install K8s: %w", err)
@@ -112,6 +114,8 @@ func (m *K8s) BootstrapConstraints() map[string]string { return m.bootstrapConst
 
 // Remove uninstalls K8s and kubectl.
 func (k *K8s) Restore() error {
+	k.system.Print("Restoring K8s provider")
+
 	snapHandler := packages.NewSnapHandler(k.system, k.snaps)
 
 	err := snapHandler.Restore()
@@ -119,6 +123,7 @@ func (k *K8s) Restore() error {
 		return err
 	}
 
+	k.system.Print("Removing ~/.kube directory")
 	err = k.system.RemovePath(path.Join(k.system.User().HomeDir, ".kube"))
 	if err != nil {
 		return fmt.Errorf("failed to remove '.kube' from user's home directory: %w", err)
@@ -173,6 +178,7 @@ func (k *K8s) init() error {
 	k.handleExistingContainerd()
 
 	if k.needsBootstrap() {
+		k.system.Print("  Bootstrapping K8s cluster")
 		cmd := system.NewCommand("k8s", []string{"bootstrap"})
 		_, err := k.system.RunWithRetries(cmd, (5 * time.Minute))
 		if err != nil {
@@ -180,6 +186,7 @@ func (k *K8s) init() error {
 		}
 	}
 
+	k.system.Print("  Waiting for K8s to be ready")
 	cmd := system.NewCommand("k8s", []string{"status", "--wait-ready", "--timeout", "270s"})
 	_, err := k.system.RunWithRetries(cmd, (5 * time.Minute))
 
@@ -192,6 +199,7 @@ func (k *K8s) configureFeatures() error {
 		for key, value := range conf {
 			featureConfig := fmt.Sprintf("%s.%s=%s", featureName, key, value)
 
+			k.system.Print(fmt.Sprintf("  Setting K8s feature config: %s", featureConfig))
 			cmd := system.NewCommand("k8s", []string{"set", featureConfig})
 			_, err := k.system.Run(cmd)
 			if err != nil {
@@ -199,6 +207,7 @@ func (k *K8s) configureFeatures() error {
 			}
 		}
 
+		k.system.Print(fmt.Sprintf("  Enabling K8s feature '%s'", featureName))
 		cmd := system.NewCommand("k8s", []string{"enable", featureName})
 		_, err := k.system.RunWithRetries(cmd, (5 * time.Minute))
 		if err != nil {
@@ -212,6 +221,7 @@ func (k *K8s) configureFeatures() error {
 // setupKubectl both installs the kubectl snap, and writes the relevant kubeconfig
 // file to the user's home directory such that kubectl works with K8s.
 func (k *K8s) setupKubectl() error {
+	k.system.Print("  Writing kubectl configuration")
 	cmd := system.NewCommand("k8s", []string{"kubectl", "config", "view", "--raw"})
 	result, err := k.system.Run(cmd)
 	if err != nil {

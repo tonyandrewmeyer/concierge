@@ -60,6 +60,8 @@ func (h *DebHandler) Restore() error {
 		}
 	}
 
+	h.system.Print("Running apt autoremove")
+
 	cmd := system.NewCommand("apt-get", []string{"autoremove", "-y"})
 
 	_, err := h.system.RunExclusive(cmd)
@@ -72,6 +74,8 @@ func (h *DebHandler) Restore() error {
 
 // installDeb uses `apt` to install the package on the system from the archives.
 func (h *DebHandler) installDeb(d *Deb) error {
+	h.system.Print(fmt.Sprintf("Installing apt package '%s'", d.Name))
+
 	cmd := system.NewCommand("apt-get", []string{"install", "-y", d.Name})
 
 	_, err := h.system.RunExclusive(cmd)
@@ -85,6 +89,8 @@ func (h *DebHandler) installDeb(d *Deb) error {
 
 // Remove uninstalls the deb from the system with `apt`.
 func (h *DebHandler) removeDeb(d *Deb) error {
+	h.system.Print(fmt.Sprintf("Removing apt package '%s'", d.Name))
+
 	cmd := system.NewCommand("apt-get", []string{"remove", "-y", d.Name})
 
 	_, err := h.system.RunExclusive(cmd)
@@ -98,6 +104,8 @@ func (h *DebHandler) removeDeb(d *Deb) error {
 
 // updateAptCache is a helper method to update the host's package cache.
 func (h *DebHandler) updateAptCache() error {
+	h.system.Print("Updating apt package cache")
+
 	cmd := system.NewCommand("apt-get", []string{"update"})
 
 	_, err := h.system.RunExclusive(cmd)

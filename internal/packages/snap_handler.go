@@ -62,11 +62,23 @@ func (h *SnapHandler) installSnap(s *system.Snap) error {
 
 	if snapInfo.Installed {
 		action = "refresh"
-		logAction = "Refreshed"
+		logAction = "Refreshing"
 	} else {
 		action = "install"
-		logAction = "Installed"
+		logAction = "Installing"
 	}
+
+	channelInfo := ""
+	if s.Channel != "" {
+		channelInfo = fmt.Sprintf(" from channel '%s'", s.Channel)
+	}
+
+	classicInfo := ""
+	if snapInfo.Classic {
+		classicInfo = " (classic confinement)"
+	}
+
+	h.system.Print(fmt.Sprintf("%s snap '%s'%s%s", logAction, s.Name, channelInfo, classicInfo))
 
 	args := []string{action, s.Name}
 
@@ -84,7 +96,7 @@ func (h *SnapHandler) installSnap(s *system.Snap) error {
 		return fmt.Errorf("command failed: %w", err)
 	}
 
-	slog.Info(fmt.Sprintf("%s snap", logAction), "snap", s.Name)
+	slog.Info(fmt.Sprintf("%sd snap", logAction[:len(logAction)-3]), "snap", s.Name)
 	return nil
 }
 
@@ -95,6 +107,8 @@ func (h *SnapHandler) connectSnap(s *system.Snap) error {
 		if len(parts) > 2 {
 			return fmt.Errorf("too many arguments in snap connection string '%s'", connection)
 		}
+
+		h.system.Print(fmt.Sprintf("Connecting snap interface: %s", connection))
 
 		args := append([]string{"connect"}, parts...)
 
@@ -110,6 +124,9 @@ func (h *SnapHandler) connectSnap(s *system.Snap) error {
 // removeSnap uninstalls the specified snap from the system, optionally purging its data.
 func (h *SnapHandler) removeSnap(s *system.Snap) error {
 	slog.Debug("Removing snap", "snap", s.Name)
+
+	h.system.Print(fmt.Sprintf("Removing snap '%s'", s.Name))
+
 	args := []string{"remove", s.Name, "--purge"}
 
 	cmd := system.NewCommand("snap", args)

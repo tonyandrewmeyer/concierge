@@ -59,6 +59,8 @@ type MicroK8s struct {
 // This includes installing the snap, enabling the user who ran concierge to interact
 // with MicroK8s without sudo, and sets up the user's kubeconfig file.
 func (m *MicroK8s) Prepare() error {
+	m.system.Print("Preparing MicroK8s provider")
+
 	err := m.install()
 	if err != nil {
 		return fmt.Errorf("failed to install MicroK8s: %w", err)
@@ -118,6 +120,8 @@ func (m *MicroK8s) BootstrapConstraints() map[string]string { return m.bootstrap
 
 // Remove uninstalls MicroK8s and kubectl.
 func (m *MicroK8s) Restore() error {
+	m.system.Print("Restoring MicroK8s provider")
+
 	snapHandler := packages.NewSnapHandler(m.system, m.snaps)
 
 	err := snapHandler.Restore()
@@ -125,6 +129,7 @@ func (m *MicroK8s) Restore() error {
 		return err
 	}
 
+	m.system.Print("Removing ~/.kube directory")
 	err = m.system.RemovePath(path.Join(m.system.User().HomeDir, ".kube"))
 	if err != nil {
 		return fmt.Errorf("failed to remove '.kube' from user's home directory: %w", err)
@@ -149,6 +154,7 @@ func (m *MicroK8s) install() error {
 
 // init ensures that MicroK8s is installed, minimally configured, and ready.
 func (m *MicroK8s) init() error {
+	m.system.Print("  Waiting for MicroK8s to be ready")
 	cmd := system.NewCommand("microk8s", []string{"status", "--wait-ready", "--timeout", "270"})
 	_, err := m.system.RunWithRetries(cmd, (5 * time.Minute))
 
@@ -165,6 +171,7 @@ func (m *MicroK8s) enableAddons() error {
 			enableArg = "metallb:10.64.140.43-10.64.140.49"
 		}
 
+		m.system.Print(fmt.Sprintf("  Enabling MicroK8s addon '%s'", addon))
 		cmd := system.NewCommand("microk8s", []string{"enable", enableArg})
 		_, err := m.system.RunWithRetries(cmd, (5 * time.Minute))
 		if err != nil {
@@ -178,6 +185,7 @@ func (m *MicroK8s) enableAddons() error {
 // enableNonRootUserControl ensures the current user is in the correct POSIX group
 // that allows them to interact with MicroK8s.
 func (m *MicroK8s) enableNonRootUserControl() error {
+	m.system.Print("  Enabling non-root user access to MicroK8s")
 	username := m.system.User().Username
 
 	cmd := system.NewCommand("usermod", []string{"-a", "-G", m.GroupName(), username})
@@ -193,6 +201,7 @@ func (m *MicroK8s) enableNonRootUserControl() error {
 // setupKubectl both installs the kubectl snap, and writes the relevant kubeconfig
 // file to the user's home directory such that kubectl works with MicroK8s.
 func (m *MicroK8s) setupKubectl() error {
+	m.system.Print("  Writing kubectl configuration")
 	cmd := system.NewCommand("microk8s", []string{"config"})
 	result, err := m.system.Run(cmd)
 	if err != nil {

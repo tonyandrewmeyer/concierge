@@ -44,6 +44,8 @@ type LXD struct {
 // This includes installing the snap, enabling the user who ran concierge to interact
 // with LXD without sudo, and deconflicting the firewall rules with docker.
 func (l *LXD) Prepare() error {
+	l.system.Print("Preparing LXD provider")
+
 	err := l.install()
 	if err != nil {
 		return fmt.Errorf("failed to install LXD: %w", err)
@@ -91,6 +93,8 @@ func (l *LXD) BootstrapConstraints() map[string]string { return l.bootstrapConst
 
 // Remove uninstalls LXD.
 func (l *LXD) Restore() error {
+	l.system.Print("Restoring LXD provider")
+
 	snapHandler := packages.NewSnapHandler(l.system, l.snaps)
 
 	err := snapHandler.Restore()
@@ -133,6 +137,7 @@ func (l *LXD) install() error {
 
 // init ensures that LXD is minimally configured, and ready.
 func (l *LXD) init() error {
+	l.system.Print("  Initializing LXD with minimal configuration")
 	return l.system.RunMany(
 		system.NewCommand("lxd", []string{"waitready", "--timeout", "270"}),
 		system.NewCommand("lxd", []string{"init", "--minimal"}),
@@ -142,6 +147,7 @@ func (l *LXD) init() error {
 
 // enableNonRootUserControl ensures the current user is in the `lxd` group.
 func (l *LXD) enableNonRootUserControl() error {
+	l.system.Print("  Enabling non-root user access to LXD")
 	username := l.system.User().Username
 
 	return l.system.RunMany(
@@ -154,6 +160,7 @@ func (l *LXD) enableNonRootUserControl() error {
 // This is to avoid a conflict with the default iptables rules that ship with
 // docker on Ubuntu.
 func (l *LXD) deconflictFirewall() error {
+	l.system.Print("  Adjusting firewall rules for LXD")
 	return l.system.RunMany(
 		system.NewCommand("iptables", []string{"-F", "FORWARD"}),
 		system.NewCommand("iptables", []string{"-P", "FORWARD", "ACCEPT"}),

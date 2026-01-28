@@ -42,8 +42,9 @@ func parseLoggingFlags(flags *pflag.FlagSet) {
 	// Setup the TextHandler and ensure our configured logger is the default.
 	var h slog.Handler
 	if dryRun {
-		// In dry-run mode, suppress all logging output
-		h = slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError + 1})
+		// In dry-run mode, suppress all logging output (including errors) so only
+		// Print() messages appear on stdout. Errors are still returned to the caller.
+		h = slog.NewTextHandler(io.Discard, nil)
 	} else {
 		h = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})
 	}

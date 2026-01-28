@@ -78,9 +78,13 @@ func (m *Manager) execute(action string) error {
 			}
 		}
 	case RestoreAction:
-		err := m.loadRuntimeConfig()
-		if err != nil {
-			return fmt.Errorf("failed to load previous runtime configuration: %w", err)
+		// In dry-run mode, skip loading runtime config since no actual prepare
+		// may have been run. Use the current config to show what would be restored.
+		if !m.config.DryRun {
+			err := m.loadRuntimeConfig()
+			if err != nil {
+				return fmt.Errorf("failed to load previous runtime configuration: %w", err)
+			}
 		}
 	default:
 		return fmt.Errorf("unknown handler action: %s", action)

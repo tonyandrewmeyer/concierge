@@ -113,6 +113,35 @@ export CONCIERGE_JUJU_CHANNEL=3.6/beta
 sudo concierge prepare -p dev
 ```
 
+3. Preview what `concierge` would do without making any changes:
+
+```bash
+sudo concierge prepare -p dev --dry-run
+```
+
+### Dry Run Mode
+
+Both `prepare` and `restore` commands support a `--dry-run` flag that shows what
+operations would be performed without actually making any changes to the system.
+
+```bash
+# Preview prepare operations
+sudo concierge prepare -p dev --dry-run
+
+# Preview restore operations (requires a previous prepare to have been run)
+sudo concierge restore --dry-run
+```
+
+In dry-run mode:
+- All logging output is suppressed
+- Operations are printed to stdout in a human-readable format
+- No packages are installed or removed
+- No files are created or modified
+- No Juju controllers are bootstrapped or destroyed
+
+This is useful for verifying what `concierge` will do before running it, or for
+understanding what a particular preset or configuration file includes.
+
 ## Configuration
 
 ### Presets

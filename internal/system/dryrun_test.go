@@ -26,19 +26,19 @@ func TestDryRunWorkerPrint(t *testing.T) {
 }
 
 func TestDryRunWorkerSkipsExecution(t *testing.T) {
-	// Create a mock system to verify no commands are executed
-	mock := NewMockSystem()
-
-	// We can't use a real System here, so we'll test with nil
-	// and verify the methods don't panic and return success
+	// Create a DryRunWorker with a buffer for output.
+	// Note: We use a nil realSystem here because this test only exercises
+	// execution methods (Run, RunMany, etc.) which don't delegate to realSystem.
+	// Read operations that delegate to realSystem are tested separately.
+	var buf bytes.Buffer
 	drw := &DryRunWorker{
 		realSystem: nil,
-		out:        &bytes.Buffer{},
+		out:        &buf,
 	}
 
 	cmd := NewCommand("echo", []string{"should not run"})
 
-	// Test Run
+	// Test Run - should return success without executing
 	output, err := drw.Run(cmd)
 	if err != nil {
 		t.Fatalf("Run should not return error, got: %v", err)
@@ -47,13 +47,13 @@ func TestDryRunWorkerSkipsExecution(t *testing.T) {
 		t.Fatalf("Run should return empty output, got: %v", output)
 	}
 
-	// Test RunMany
+	// Test RunMany - should return success without executing
 	err = drw.RunMany(cmd, cmd)
 	if err != nil {
 		t.Fatalf("RunMany should not return error, got: %v", err)
 	}
 
-	// Test RunExclusive
+	// Test RunExclusive - should return success without executing
 	output, err = drw.RunExclusive(cmd)
 	if err != nil {
 		t.Fatalf("RunExclusive should not return error, got: %v", err)
@@ -62,18 +62,13 @@ func TestDryRunWorkerSkipsExecution(t *testing.T) {
 		t.Fatalf("RunExclusive should return empty output, got: %v", output)
 	}
 
-	// Test RunWithRetries
+	// Test RunWithRetries - should return success without executing
 	output, err = drw.RunWithRetries(cmd, 1*time.Second)
 	if err != nil {
 		t.Fatalf("RunWithRetries should not return error, got: %v", err)
 	}
 	if len(output) != 0 {
 		t.Fatalf("RunWithRetries should return empty output, got: %v", output)
-	}
-
-	// Verify mock wasn't used (no commands executed)
-	if len(mock.ExecutedCommands) != 0 {
-		t.Fatalf("no commands should be executed, got: %v", mock.ExecutedCommands)
 	}
 }
 

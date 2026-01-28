@@ -53,7 +53,7 @@ func (h *SnapHandler) Restore() error {
 // If already installed, but on the wrong channel, the snap is refreshed.
 func (h *SnapHandler) installSnap(s *system.Snap) error {
 	slog.Debug("Installing snap", "snap", s.Name)
-	var action, logAction string
+	var action, presentTense, pastTense string
 
 	snapInfo, err := h.system.SnapInfo(s.Name, s.Channel)
 	if err != nil {
@@ -62,10 +62,12 @@ func (h *SnapHandler) installSnap(s *system.Snap) error {
 
 	if snapInfo.Installed {
 		action = "refresh"
-		logAction = "Refreshing"
+		presentTense = "Refreshing"
+		pastTense = "Refreshed"
 	} else {
 		action = "install"
-		logAction = "Installing"
+		presentTense = "Installing"
+		pastTense = "Installed"
 	}
 
 	channelInfo := ""
@@ -78,7 +80,7 @@ func (h *SnapHandler) installSnap(s *system.Snap) error {
 		classicInfo = " (classic confinement)"
 	}
 
-	h.system.Print(fmt.Sprintf("%s snap '%s'%s%s", logAction, s.Name, channelInfo, classicInfo))
+	h.system.Print(fmt.Sprintf("%s snap '%s'%s%s", presentTense, s.Name, channelInfo, classicInfo))
 
 	args := []string{action, s.Name}
 
@@ -96,7 +98,7 @@ func (h *SnapHandler) installSnap(s *system.Snap) error {
 		return fmt.Errorf("command failed: %w", err)
 	}
 
-	slog.Info(fmt.Sprintf("%sd snap", logAction[:len(logAction)-3]), "snap", s.Name)
+	slog.Info(fmt.Sprintf("%s snap", pastTense), "snap", s.Name)
 	return nil
 }
 

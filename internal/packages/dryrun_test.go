@@ -3,7 +3,6 @@ package packages
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"os/user"
 	"strings"
@@ -42,8 +41,8 @@ func (t *testDryRunWorker) User() *user.User {
 }
 
 func (t *testDryRunWorker) Run(c *system.Command) ([]byte, error) {
-	// In dry-run mode, commands should not be executed
-	// But we track them here to verify they were NOT called
+	// This mock returns success without actually executing the command.
+	// We track the command strings for potential test assertions.
 	t.mu.Lock()
 	t.executedCmds = append(t.executedCmds, c.CommandString())
 	t.mu.Unlock()
@@ -182,6 +181,3 @@ func TestDebHandlerPrintsDryRunMessages(t *testing.T) {
 		t.Errorf("expected 'Installing apt package python3' message, got: %s", output)
 	}
 }
-
-// Ensure io import is used
-var _ = io.Discard

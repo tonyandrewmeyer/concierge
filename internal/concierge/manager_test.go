@@ -8,30 +8,38 @@ import (
 )
 
 func TestDryRunPlanExecution(t *testing.T) {
-	// Test that with a mock system (simulating dry-run behavior),
-	// no actual commands are executed and Print() calls don't panic
+	// Test that with DryRunWorker, commands are not executed but
+	// Print() calls produce output and the plan executes successfully
 
-	mock := system.NewMockSystem()
+	// Create a real system and wrap it with DryRunWorker
+	realSystem, err := system.NewSystem(false)
+	if err != nil {
+		t.Fatalf("failed to create system: %v", err)
+	}
+	dryRunWorker := system.NewDryRunWorker(realSystem)
 
-	// Create a minimal config
-	conf := &config.Config{}
+	// Create a minimal config with DryRun enabled
+	conf := &config.Config{
+		DryRun: true,
+	}
 
-	// Create the plan with mock system
-	plan := NewPlan(conf, mock)
+	// Create the plan with DryRunWorker
+	plan := NewPlan(conf, dryRunWorker)
 
 	// Verify plan was created
 	if plan == nil {
 		t.Fatal("plan should not be nil")
 	}
 
-	// Execute prepare - should not fail with mock system
-	err := plan.Execute(PrepareAction)
+	// Execute prepare - should not fail and should not execute actual commands
+	// This tests that DryRunWorker properly skips execution while allowing
+	// the plan to run through its logic
+	err = plan.Execute(PrepareAction)
 	if err != nil {
-		t.Fatalf("plan execution should not fail with mock system: %v", err)
+		t.Fatalf("plan execution should not fail with DryRunWorker: %v", err)
 	}
 
-	// Verify that Print() was called (mock system no-ops it)
-	// and that the execution completed without actual system changes
+	// The test passes if no actual system changes occurred and no errors were raised
 }
 
 func TestDryRunConfigField(t *testing.T) {

@@ -113,12 +113,6 @@ export CONCIERGE_JUJU_CHANNEL=3.6/beta
 sudo concierge prepare -p dev
 ```
 
-3. Preview what `concierge` would do without making any changes:
-
-```bash
-sudo concierge prepare -p dev --dry-run
-```
-
 ### Dry Run Mode
 
 Both `prepare` and `restore` commands support a `--dry-run` flag that shows what
@@ -128,7 +122,7 @@ operations would be performed without actually making any changes to the system.
 # Preview prepare operations
 sudo concierge prepare -p dev --dry-run
 
-# Preview restore operations (requires a previous prepare to have been run)
+# Preview restore operations
 sudo concierge restore --dry-run
 ```
 
@@ -142,7 +136,9 @@ In dry-run mode:
   already installed, reading configuration files)
 
 This is useful for verifying what `concierge` will do before running it, or for
-understanding what a particular preset or configuration file includes.
+understanding what a particular preset or configuration file includes. Note that
+Concierge will inspect the system (to see what snaps are already installed, for
+example), so, while it is read-only, it does not avoid running any commands.
 
 **Note:** Dry-run mode reads actual system state to provide accurate output. If your
 configuration references files that don't exist (e.g., Google Cloud credentials), the

@@ -313,7 +313,7 @@ func (k *K8s) configureImageRegistry() error {
 	hostsConfig := k.buildHostsToml()
 	hostsPath := path.Join(hostsDir, "hosts.toml")
 
-	err = k.system.WriteFile(hostsPath, []byte(hostsConfig), 0644)
+	err = k.system.WriteFile(hostsPath, []byte(hostsConfig), 0600)
 	if err != nil {
 		return fmt.Errorf("failed to write hosts.toml: %w", err)
 	}

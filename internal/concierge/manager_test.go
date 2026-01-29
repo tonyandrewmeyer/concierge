@@ -9,7 +9,7 @@ import (
 
 func TestDryRunPlanExecution(t *testing.T) {
 	// Test that with DryRunWorker, commands are not executed but
-	// Print() calls produce output and the plan executes successfully
+	// Print() calls produce output and the plan executes successfully.
 
 	// Create a real system and wrap it with DryRunWorker
 	realSystem, err := system.NewSystem(false)

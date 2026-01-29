@@ -176,7 +176,7 @@ func (m *MicroK8s) configureImageRegistry() error {
 	hostsConfig := m.buildHostsToml()
 	hostsPath := path.Join(certsDir, "hosts.toml")
 
-	err = m.system.WriteFile(hostsPath, []byte(hostsConfig), 0644)
+	err = m.system.WriteFile(hostsPath, []byte(hostsConfig), 0600)
 	if err != nil {
 		return fmt.Errorf("failed to write hosts.toml: %w", err)
 	}

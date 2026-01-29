@@ -1,7 +1,6 @@
 package providers
 
 import (
-	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"path"
@@ -197,24 +196,10 @@ func (m *MicroK8s) configureImageRegistry() error {
 	return nil
 }
 
-// buildHostsToml generates the hosts.toml configuration for containerd.
+// buildHostsToml generates the hosts.toml configuration for containerd using
+// the MicroK8s provider's image registry configuration.
 func (m *MicroK8s) buildHostsToml() string {
-	var sb strings.Builder
-
-	sb.WriteString(fmt.Sprintf("server = %q\n\n", m.ImageRegistry.URL))
-	sb.WriteString(fmt.Sprintf("[host.%q]\n", m.ImageRegistry.URL))
-	sb.WriteString("capabilities = [\"pull\", \"resolve\"]\n")
-
-	// Add authentication header if credentials are provided
-	if m.ImageRegistry.Username != "" && m.ImageRegistry.Password != "" {
-		credentials := base64.StdEncoding.EncodeToString(
-			[]byte(m.ImageRegistry.Username + ":" + m.ImageRegistry.Password),
-		)
-		sb.WriteString(fmt.Sprintf("\n[host.%q.header]\n", m.ImageRegistry.URL))
-		sb.WriteString(fmt.Sprintf("authorization = \"Basic %s\"\n", credentials))
-	}
-
-	return sb.String()
+	return buildHostsTomlFromConfig(m.ImageRegistry)
 }
 
 // init ensures that MicroK8s is installed, minimally configured, and ready.

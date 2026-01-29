@@ -132,7 +132,7 @@ In dry-run mode:
 - No packages are installed or removed
 - No files are created or modified
 - No Juju controllers are bootstrapped or destroyed
-- System state is read for accurate conditional logic (e.g., checking if snaps are
+- System state is read for accurate conditional logic (for example, checking if snaps are
   already installed, reading configuration files)
 
 This is useful for verifying what `concierge` will do before running it, or for

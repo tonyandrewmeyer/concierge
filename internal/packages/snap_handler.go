@@ -110,7 +110,6 @@ func (h *SnapHandler) connectSnap(s *system.Snap) error {
 // removeSnap uninstalls the specified snap from the system, optionally purging its data.
 func (h *SnapHandler) removeSnap(s *system.Snap) error {
 	slog.Debug("Removing snap", "snap", s.Name)
-
 	args := []string{"remove", s.Name, "--purge"}
 
 	cmd := system.NewCommand("snap", args)

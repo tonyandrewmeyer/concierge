@@ -282,11 +282,11 @@ func TestK8sPrepareWithImageRegistry(t *testing.T) {
 
 	expectedFiles := map[string]string{
 		".kube/config": "",
-		"/var/snap/k8s/common/etc/containerd/hosts.d/docker.io/hosts.toml": "server = \"https://mirror.example.com\"\n\n[host.\"https://mirror.example.com\"]\ncapabilities = [\"pull\", \"resolve\"]\n",
+		"/etc/containerd/hosts.d/docker.io/hosts.toml": "server = \"https://mirror.example.com\"\n\n[host.\"https://mirror.example.com\"]\ncapabilities = [\"pull\", \"resolve\"]\n",
 	}
 
 	expectedDirs := []string{
-		"/var/snap/k8s/common/etc/containerd/hosts.d/docker.io",
+		"/etc/containerd/hosts.d/docker.io",
 	}
 
 	sys := system.NewMockSystem()

@@ -301,8 +301,8 @@ func (k *K8s) configureImageRegistry() error {
 	slog.Info("Configuring image registry", "url", k.ImageRegistry.URL)
 
 	// Create the hosts.d directory for docker.io registry configuration
-	// The k8s snap uses containerd with hosts.d configuration
-	hostsDir := "/var/snap/k8s/common/etc/containerd/hosts.d/docker.io"
+	// The k8s snap uses containerd with hosts.d configuration at /etc/containerd/hosts.d/
+	hostsDir := "/etc/containerd/hosts.d/docker.io"
 	err := k.system.MkdirAll(hostsDir, 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create hosts directory: %w", err)

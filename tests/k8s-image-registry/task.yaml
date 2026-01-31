@@ -12,11 +12,12 @@ execute: |
   "$SPREAD_PATH"/concierge --trace prepare
 
   # Verify the hosts.toml file was created
-  test -f /var/snap/k8s/common/etc/containerd/hosts.d/docker.io/hosts.toml
+  test -f /etc/containerd/hosts.d/docker.io/hosts.toml
 
   # Verify the content contains the mirror URL (expanded from env var)
-  grep -q 'server = "https://mirror.gcr.io"' /var/snap/k8s/common/etc/containerd/hosts.d/docker.io/hosts.toml
-  grep -q 'capabilities = \["pull", "resolve"\]' /var/snap/k8s/common/etc/containerd/hosts.d/docker.io/hosts.toml
+  cat /etc/containerd/hosts.d/docker.io/hosts.toml
+  grep -q 'server = "https://mirror.gcr.io"' /etc/containerd/hosts.d/docker.io/hosts.toml
+  grep -q 'capabilities = \["pull", "resolve"\]' /etc/containerd/hosts.d/docker.io/hosts.toml
 
   # Verify k8s is running
   sudo k8s status --wait-ready

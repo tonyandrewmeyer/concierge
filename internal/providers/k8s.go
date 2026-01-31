@@ -1,7 +1,6 @@
 package providers
 
 import (
-	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"path"
@@ -321,22 +320,8 @@ func (k *K8s) configureImageRegistry() error {
 	return nil
 }
 
-// buildHostsToml generates the hosts.toml configuration for containerd.
+// buildHostsToml generates the hosts.toml configuration for containerd using
+// the K8s provider's image registry configuration.
 func (k *K8s) buildHostsToml() string {
-	var sb strings.Builder
-
-	sb.WriteString(fmt.Sprintf("server = %q\n\n", k.ImageRegistry.URL))
-	sb.WriteString(fmt.Sprintf("[host.%q]\n", k.ImageRegistry.URL))
-	sb.WriteString("capabilities = [\"pull\", \"resolve\"]\n")
-
-	// Add authentication header if credentials are provided
-	if k.ImageRegistry.Username != "" && k.ImageRegistry.Password != "" {
-		credentials := base64.StdEncoding.EncodeToString(
-			[]byte(k.ImageRegistry.Username + ":" + k.ImageRegistry.Password),
-		)
-		sb.WriteString(fmt.Sprintf("\n[host.%q.header]\n", k.ImageRegistry.URL))
-		sb.WriteString(fmt.Sprintf("authorization = \"Basic %s\"\n", credentials))
-	}
-
-	return sb.String()
+	return buildHostsTomlFromConfig(k.ImageRegistry)
 }

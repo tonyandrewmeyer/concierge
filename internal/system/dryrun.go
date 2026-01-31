@@ -66,7 +66,7 @@ func (d *DryRunWorker) RunWithRetries(c *Command, maxDuration time.Duration) ([]
 
 // WriteHomeDirFile prints what file would be written and returns success.
 func (d *DryRunWorker) WriteHomeDirFile(filepath string, contents []byte) error {
-	fullPath := fmt.Sprintf("%s/%s", d.realSystem.User().HomeDir, filepath)
+	fullPath := path.Join(d.realSystem.User().HomeDir, filepath)
 	d.Print(fmt.Sprintf("Would write file: %s", fullPath))
 	return nil
 }

@@ -203,6 +203,7 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 		return nil
 	}
 
+	j.system.Print(fmt.Sprintf("Bootstrapping Juju controller '%s' on %s", controllerName, provider.CloudName()))
 	slog.Info("Bootstrapping Juju", "provider", provider.Name())
 
 	bootstrapArgs := []string{
@@ -280,6 +281,7 @@ func (j *JujuHandler) killProvider(provider providers.Provider) error {
 		return nil
 	}
 
+	j.system.Print(fmt.Sprintf("Destroying Juju controller '%s'", controllerName))
 	slog.Info("Destroying Juju controller", "provider", provider.Name())
 
 	killArgs := []string{"kill-controller", "--verbose", "--no-prompt", controllerName}

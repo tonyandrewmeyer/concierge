@@ -78,11 +78,14 @@ func (m *Manager) execute(action string) error {
 			}
 		}
 	case RestoreAction:
-		// In dry-run mode, skip loading runtime config since no actual prepare
-		// may have been run. Use the current config to show what would be restored.
-		if !m.config.DryRun {
-			err := m.loadRuntimeConfig()
-			if err != nil {
+		// Try to load the cached runtime config for accurate restore information.
+		// In dry-run mode, if no prepare has been run, fall back to current config.
+		err := m.loadRuntimeConfig()
+		if err != nil {
+			if m.config.DryRun {
+				// In dry-run mode, use current config if no cached config exists
+				slog.Debug("No cached runtime config found, using current config for dry-run")
+			} else {
 				return fmt.Errorf("failed to load previous runtime configuration: %w", err)
 			}
 		}

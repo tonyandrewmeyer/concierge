@@ -15,8 +15,8 @@ execute: |
   output=$("$SPREAD_PATH"/concierge restore --dry-run 2>&1)
 
   # Verify dry-run output contains expected messages
-  echo "$output" | MATCH "Removing snap"
-  echo "$output" | MATCH "yq"
+  # DryRunWorker auto-prints "Would run: <command>" for each operation
+  echo "$output" | MATCH "Would run:.*snap remove.*yq"
 
   # Verify that yq is still installed (dry-run shouldn't remove it)
   snap list yq | MATCH yq

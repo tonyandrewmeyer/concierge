@@ -9,9 +9,9 @@ execute: |
   output=$("$SPREAD_PATH"/concierge prepare -p dev --dry-run 2>&1)
 
   # Verify dry-run output contains expected messages
-  echo "$output" | MATCH "Installing snap"
-  echo "$output" | MATCH "juju"
-  echo "$output" | MATCH "lxd"
+  # DryRunWorker auto-prints "Would run: <command>" for each operation
+  echo "$output" | MATCH "Would run:.*snap install.*juju"
+  echo "$output" | MATCH "Would run:.*snap install.*lxd"
 
   # Verify that no actual snaps were installed
   if snap list juju 2>/dev/null; then

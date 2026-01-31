@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"os/user"
+	"strings"
 	"testing"
 	"time"
 )
@@ -25,20 +26,16 @@ func TestDryRunWorkerPrint(t *testing.T) {
 	}
 }
 
-func TestDryRunWorkerSkipsExecution(t *testing.T) {
-	// Create a DryRunWorker with a buffer for output.
-	// Note: We use a nil realSystem here because this test only exercises
-	// execution methods (Run, RunMany, etc.) which don't delegate to realSystem.
-	// Read operations that delegate to realSystem are tested separately.
+func TestDryRunWorkerAutoPrintsCommands(t *testing.T) {
 	var buf bytes.Buffer
 	drw := &DryRunWorker{
 		realSystem: nil,
 		out:        &buf,
 	}
 
-	cmd := NewCommand("echo", []string{"should not run"})
+	cmd := NewCommand("echo", []string{"hello", "world"})
 
-	// Test Run - should return success without executing
+	// Test Run - should auto-print the command
 	output, err := drw.Run(cmd)
 	if err != nil {
 		t.Fatalf("Run should not return error, got: %v", err)
@@ -46,60 +43,96 @@ func TestDryRunWorkerSkipsExecution(t *testing.T) {
 	if len(output) != 0 {
 		t.Fatalf("Run should return empty output, got: %v", output)
 	}
+	// Check for "Would run:" prefix and the arguments (path may vary by system)
+	if !strings.Contains(buf.String(), "Would run:") || !strings.Contains(buf.String(), "echo hello world") {
+		t.Fatalf("Run should print command, got: %s", buf.String())
+	}
 
-	// Test RunMany - should return success without executing
+	buf.Reset()
+
+	// Test RunMany - should auto-print each command
 	err = drw.RunMany(cmd, cmd)
 	if err != nil {
 		t.Fatalf("RunMany should not return error, got: %v", err)
 	}
+	if strings.Count(buf.String(), "Would run:") != 2 {
+		t.Fatalf("RunMany should print 2 commands, got: %s", buf.String())
+	}
 
-	// Test RunExclusive - should return success without executing
+	buf.Reset()
+
+	// Test RunExclusive - should auto-print the command
 	output, err = drw.RunExclusive(cmd)
 	if err != nil {
 		t.Fatalf("RunExclusive should not return error, got: %v", err)
 	}
-	if len(output) != 0 {
-		t.Fatalf("RunExclusive should return empty output, got: %v", output)
+	if !strings.Contains(buf.String(), "Would run:") {
+		t.Fatalf("RunExclusive should print command, got: %s", buf.String())
 	}
 
-	// Test RunWithRetries - should return success without executing
+	buf.Reset()
+
+	// Test RunWithRetries - should auto-print the command
 	output, err = drw.RunWithRetries(cmd, 1*time.Second)
 	if err != nil {
 		t.Fatalf("RunWithRetries should not return error, got: %v", err)
 	}
-	if len(output) != 0 {
-		t.Fatalf("RunWithRetries should return empty output, got: %v", output)
+	if !strings.Contains(buf.String(), "Would run:") {
+		t.Fatalf("RunWithRetries should print command, got: %s", buf.String())
 	}
 }
 
-func TestDryRunWorkerSkipsFileOperations(t *testing.T) {
+func TestDryRunWorkerAutoPrintsFileOperations(t *testing.T) {
+	var buf bytes.Buffer
+
+	// Use a mock system for realSystem since WriteHomeDirFile needs User().HomeDir
+	mock := NewMockSystem()
+
 	drw := &DryRunWorker{
-		realSystem: nil,
-		out:        &bytes.Buffer{},
+		realSystem: mock,
+		out:        &buf,
 	}
 
-	// Test WriteHomeDirFile
+	// Test WriteHomeDirFile - should print what would be written
 	err := drw.WriteHomeDirFile("test/path", []byte("content"))
 	if err != nil {
 		t.Fatalf("WriteHomeDirFile should not return error, got: %v", err)
 	}
+	if !strings.Contains(buf.String(), "Would write file:") {
+		t.Fatalf("WriteHomeDirFile should print file path, got: %s", buf.String())
+	}
 
-	// Test MkdirAll
+	buf.Reset()
+
+	// Test MkdirAll - should print what directory would be created
 	err = drw.MkdirAll("/test/path", os.ModePerm)
 	if err != nil {
 		t.Fatalf("MkdirAll should not return error, got: %v", err)
 	}
+	if !strings.Contains(buf.String(), "Would create directory: /test/path") {
+		t.Fatalf("MkdirAll should print directory path, got: %s", buf.String())
+	}
 
-	// Test RemovePath
+	buf.Reset()
+
+	// Test RemovePath - should print what would be removed
 	err = drw.RemovePath("/test/path")
 	if err != nil {
 		t.Fatalf("RemovePath should not return error, got: %v", err)
 	}
+	if !strings.Contains(buf.String(), "Would remove: /test/path") {
+		t.Fatalf("RemovePath should print path, got: %s", buf.String())
+	}
 
-	// Test ChownAll
+	buf.Reset()
+
+	// Test ChownAll - should print what ownership change would occur
 	err = drw.ChownAll("/test/path", &user.User{Uid: "1000", Gid: "1000"})
 	if err != nil {
 		t.Fatalf("ChownAll should not return error, got: %v", err)
+	}
+	if !strings.Contains(buf.String(), "Would chown /test/path") {
+		t.Fatalf("ChownAll should print chown info, got: %s", buf.String())
 	}
 }
 

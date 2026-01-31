@@ -16,10 +16,10 @@ import (
 // testDryRunWorker is a test implementation that captures Print output
 // and verifies no commands are executed
 type testDryRunWorker struct {
-	printOutput    *bytes.Buffer
-	mu             sync.Mutex
-	executedCmds   []string
-	mockSnapInfo   map[string]*system.SnapInfo
+	printOutput  *bytes.Buffer
+	mu           sync.Mutex
+	executedCmds []string
+	mockSnapInfo map[string]*system.SnapInfo
 }
 
 func newTestDryRunWorker() *testDryRunWorker {
@@ -109,7 +109,7 @@ func (t *testDryRunWorker) MockSnapInfo(name string, installed, classic bool) {
 // Verify testDryRunWorker implements system.Worker
 var _ system.Worker = (*testDryRunWorker)(nil)
 
-func TestSnapHandlerPrintsDryRunMessages(t *testing.T) {
+func TestSnapHandlerExecutesCorrectCommands(t *testing.T) {
 	drw := newTestDryRunWorker()
 	drw.MockSnapInfo("existing-snap", true, false)
 
@@ -124,18 +124,27 @@ func TestSnapHandlerPrintsDryRunMessages(t *testing.T) {
 		t.Fatalf("Prepare should not fail: %v", err)
 	}
 
-	output := drw.printOutput.String()
-
-	// Verify Print was called with appropriate messages
-	if !strings.Contains(output, "Installing snap 'new-snap'") {
-		t.Errorf("expected 'Installing snap' message for new snap, got: %s", output)
+	// Verify the correct commands were issued
+	foundInstall := false
+	foundRefresh := false
+	for _, cmd := range drw.executedCmds {
+		if strings.Contains(cmd, "snap install new-snap") {
+			foundInstall = true
+		}
+		if strings.Contains(cmd, "snap refresh existing-snap") {
+			foundRefresh = true
+		}
 	}
-	if !strings.Contains(output, "Refreshing snap 'existing-snap'") {
-		t.Errorf("expected 'Refreshing snap' message for existing snap, got: %s", output)
+
+	if !foundInstall {
+		t.Errorf("expected 'snap install new-snap' command, got: %v", drw.executedCmds)
+	}
+	if !foundRefresh {
+		t.Errorf("expected 'snap refresh existing-snap' command, got: %v", drw.executedCmds)
 	}
 }
 
-func TestSnapHandlerRestorePrintsDryRunMessages(t *testing.T) {
+func TestSnapHandlerRestoreExecutesCorrectCommands(t *testing.T) {
 	drw := newTestDryRunWorker()
 
 	snaps := []*system.Snap{
@@ -148,14 +157,19 @@ func TestSnapHandlerRestorePrintsDryRunMessages(t *testing.T) {
 		t.Fatalf("Restore should not fail: %v", err)
 	}
 
-	output := drw.printOutput.String()
+	foundRemove := false
+	for _, cmd := range drw.executedCmds {
+		if strings.Contains(cmd, "snap remove snap-to-remove") {
+			foundRemove = true
+		}
+	}
 
-	if !strings.Contains(output, "Removing snap 'snap-to-remove'") {
-		t.Errorf("expected 'Removing snap' message, got: %s", output)
+	if !foundRemove {
+		t.Errorf("expected 'snap remove snap-to-remove' command, got: %v", drw.executedCmds)
 	}
 }
 
-func TestDebHandlerPrintsDryRunMessages(t *testing.T) {
+func TestDebHandlerExecutesCorrectCommands(t *testing.T) {
 	drw := newTestDryRunWorker()
 
 	debs := []*Deb{
@@ -169,15 +183,28 @@ func TestDebHandlerPrintsDryRunMessages(t *testing.T) {
 		t.Fatalf("Prepare should not fail: %v", err)
 	}
 
-	output := drw.printOutput.String()
+	foundUpdate := false
+	foundMake := false
+	foundPython := false
+	for _, cmd := range drw.executedCmds {
+		if strings.Contains(cmd, "apt-get update") {
+			foundUpdate = true
+		}
+		if strings.Contains(cmd, "apt-get install") && strings.Contains(cmd, "make") {
+			foundMake = true
+		}
+		if strings.Contains(cmd, "apt-get install") && strings.Contains(cmd, "python3") {
+			foundPython = true
+		}
+	}
 
-	if !strings.Contains(output, "Updating apt package cache") {
-		t.Errorf("expected 'Updating apt' message, got: %s", output)
+	if !foundUpdate {
+		t.Errorf("expected 'apt-get update' command, got: %v", drw.executedCmds)
 	}
-	if !strings.Contains(output, "Installing apt package 'make'") {
-		t.Errorf("expected 'Installing apt package make' message, got: %s", output)
+	if !foundMake {
+		t.Errorf("expected 'apt-get install make' command, got: %v", drw.executedCmds)
 	}
-	if !strings.Contains(output, "Installing apt package 'python3'") {
-		t.Errorf("expected 'Installing apt package python3' message, got: %s", output)
+	if !foundPython {
+		t.Errorf("expected 'apt-get install python3' command, got: %v", drw.executedCmds)
 	}
 }

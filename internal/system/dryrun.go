@@ -12,14 +12,14 @@ import (
 // DryRunWorker is a Worker implementation that outputs what would be done
 // without actually executing any commands or making any changes.
 type DryRunWorker struct {
-	realSystem *System
+	realSystem Worker
 	out        io.Writer
 	mu         sync.Mutex
 }
 
 // NewDryRunWorker constructs a new DryRunWorker that wraps a real System
 // for read operations while skipping execution operations.
-func NewDryRunWorker(realSystem *System) *DryRunWorker {
+func NewDryRunWorker(realSystem Worker) *DryRunWorker {
 	return &DryRunWorker{
 		realSystem: realSystem,
 		out:        os.Stdout,
@@ -38,28 +38,36 @@ func (d *DryRunWorker) User() *user.User {
 	return d.realSystem.User()
 }
 
-// Run skips actual execution and returns success.
+// Run prints the command that would be executed and returns success.
 func (d *DryRunWorker) Run(c *Command) ([]byte, error) {
+	d.Print(fmt.Sprintf("Would run: %s", c.CommandString()))
 	return []byte{}, nil
 }
 
-// RunMany skips actual execution and returns success.
+// RunMany prints each command that would be executed and returns success.
 func (d *DryRunWorker) RunMany(commands ...*Command) error {
+	for _, c := range commands {
+		d.Print(fmt.Sprintf("Would run: %s", c.CommandString()))
+	}
 	return nil
 }
 
-// RunExclusive skips actual execution and returns success.
+// RunExclusive prints the command that would be executed and returns success.
 func (d *DryRunWorker) RunExclusive(c *Command) ([]byte, error) {
+	d.Print(fmt.Sprintf("Would run: %s", c.CommandString()))
 	return []byte{}, nil
 }
 
-// RunWithRetries skips actual execution and returns success.
+// RunWithRetries prints the command that would be executed and returns success.
 func (d *DryRunWorker) RunWithRetries(c *Command, maxDuration time.Duration) ([]byte, error) {
+	d.Print(fmt.Sprintf("Would run: %s", c.CommandString()))
 	return []byte{}, nil
 }
 
-// WriteHomeDirFile skips actual file writing and returns success.
+// WriteHomeDirFile prints what file would be written and returns success.
 func (d *DryRunWorker) WriteHomeDirFile(filepath string, contents []byte) error {
+	fullPath := fmt.Sprintf("%s/%s", d.realSystem.User().HomeDir, filepath)
+	d.Print(fmt.Sprintf("Would write file: %s", fullPath))
 	return nil
 }
 
@@ -83,17 +91,20 @@ func (d *DryRunWorker) SnapChannels(snap string) ([]string, error) {
 	return d.realSystem.SnapChannels(snap)
 }
 
-// RemovePath skips actual path removal and returns success.
+// RemovePath prints what path would be removed and returns success.
 func (d *DryRunWorker) RemovePath(path string) error {
+	d.Print(fmt.Sprintf("Would remove: %s", path))
 	return nil
 }
 
-// MkdirAll skips actual directory creation and returns success.
+// MkdirAll prints what directory would be created and returns success.
 func (d *DryRunWorker) MkdirAll(path string, perm os.FileMode) error {
+	d.Print(fmt.Sprintf("Would create directory: %s", path))
 	return nil
 }
 
-// ChownAll skips actual ownership change and returns success.
+// ChownAll prints what ownership change would occur and returns success.
 func (d *DryRunWorker) ChownAll(path string, user *user.User) error {
+	d.Print(fmt.Sprintf("Would chown %s to %s:%s", path, user.Uid, user.Gid))
 	return nil
 }

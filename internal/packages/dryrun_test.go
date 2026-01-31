@@ -14,7 +14,7 @@ import (
 )
 
 // testDryRunWorker is a test implementation that captures Print output
-// and verifies no commands are executed
+// and tracks commands for verification without actually executing them
 type testDryRunWorker struct {
 	printOutput  *bytes.Buffer
 	mu           sync.Mutex

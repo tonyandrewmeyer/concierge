@@ -23,7 +23,7 @@ execute: |
   sudo k8s status --wait-ready
 
   # Test that we can pull an image (this validates the registry config works)
-  sudo k8s ctr image pull docker.io/library/busybox:latest
+  sudo /snap/k8s/current/bin/ctr --address /run/containerd/containerd.sock --namespace k8s.io images pull docker.io/library/busybox:latest
 
 restore: |
   if [[ -z "${CI:-}" ]]; then

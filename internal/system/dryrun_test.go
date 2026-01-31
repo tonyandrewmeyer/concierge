@@ -140,15 +140,57 @@ func TestDryRunWorkerDelegatesReadOperations(t *testing.T) {
 	// Create a mock system with test data
 	mock := NewMockSystem()
 	mock.MockFile("test-file.txt", []byte("test content"))
+	mock.MockFile("home/dir/file.txt", []byte("home content"))
 	mock.MockSnapStoreLookup("test-snap", "stable", false, true)
+	mock.MockSnapChannels("test-snap", []string{"stable", "edge", "beta"})
 
-	// Create DryRunWorker that wraps a real system
-	// For this test, we need to create a minimal real system
-	// Since we can't easily create a real System in tests, we'll verify
-	// that the methods exist and have the right signatures
+	var buf bytes.Buffer
+	drw := &DryRunWorker{
+		realSystem: mock,
+		out:        &buf,
+	}
 
-	// For now, just verify the interface is properly implemented
-	var _ Worker = &DryRunWorker{}
+	// Test User() delegates to real system
+	user := drw.User()
+	if user.Username != "test-user" {
+		t.Fatalf("User() should delegate to real system, got username: %s", user.Username)
+	}
+
+	// Test ReadFile delegates to real system
+	content, err := drw.ReadFile("test-file.txt")
+	if err != nil {
+		t.Fatalf("ReadFile should delegate to real system, got error: %v", err)
+	}
+	if string(content) != "test content" {
+		t.Fatalf("ReadFile should return mock content, got: %s", string(content))
+	}
+
+	// Test ReadHomeDirFile delegates to real system
+	content, err = drw.ReadHomeDirFile("home/dir/file.txt")
+	if err != nil {
+		t.Fatalf("ReadHomeDirFile should delegate to real system, got error: %v", err)
+	}
+	if string(content) != "home content" {
+		t.Fatalf("ReadHomeDirFile should return mock content, got: %s", string(content))
+	}
+
+	// Test SnapInfo delegates to real system
+	snapInfo, err := drw.SnapInfo("test-snap", "stable")
+	if err != nil {
+		t.Fatalf("SnapInfo should delegate to real system, got error: %v", err)
+	}
+	if !snapInfo.Installed {
+		t.Fatalf("SnapInfo should return mock data showing snap is installed")
+	}
+
+	// Test SnapChannels delegates to real system
+	channels, err := drw.SnapChannels("test-snap")
+	if err != nil {
+		t.Fatalf("SnapChannels should delegate to real system, got error: %v", err)
+	}
+	if len(channels) != 3 || channels[0] != "stable" {
+		t.Fatalf("SnapChannels should return mock channels, got: %v", channels)
+	}
 }
 
 func TestDryRunWorkerImplementsWorkerInterface(t *testing.T) {

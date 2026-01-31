@@ -137,8 +137,9 @@ In dry-run mode:
 
 This is useful for verifying what `concierge` will do before running it, or for
 understanding what a particular preset or configuration file includes. Note that
-Concierge will inspect the system (to see what snaps are already installed, for
-example), so, while it is read-only, it does not avoid running all commands.
+Concierge will still inspect the system (for example, to see what snaps are already
+installed), so dry-run mode runs read-only commands but never executes operations that
+modify system state.
 
 **Note:** Dry-run mode reads actual system state to provide accurate output. If your
 configuration references files that don't exist (e.g., Google Cloud credentials), the

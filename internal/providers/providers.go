@@ -3,6 +3,7 @@ package providers
 import (
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/canonical/concierge/internal/config"
@@ -50,6 +51,11 @@ func buildHostsTomlFromConfig(cfg config.ImageRegistryConfig) string {
 	sb.WriteString(fmt.Sprintf("server = %q\n\n", cfg.URL))
 	sb.WriteString(fmt.Sprintf("[host.%q]\n", cfg.URL))
 	sb.WriteString("capabilities = [\"pull\", \"resolve\"]\n")
+
+	// Warn if only one of username/password is provided
+	if (cfg.Username != "" && cfg.Password == "") || (cfg.Username == "" && cfg.Password != "") {
+		slog.Warn("Image registry has username or password set, but not both - credentials will not be used")
+	}
 
 	// Add authentication header if credentials are provided
 	if cfg.Username != "" && cfg.Password != "" {

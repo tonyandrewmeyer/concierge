@@ -12,12 +12,12 @@ import (
 
 // NewManager constructs a new instance of the concierge manager.
 func NewManager(config *config.Config) (*Manager, error) {
-	system, err := system.NewSystem(config.Trace)
+	sys, err := system.NewSystem(config.Trace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialise system: %w", err)
 	}
 
-	var worker system.Worker = system
+	var worker system.Worker = sys
 	if config.DryRun {
 		worker = system.NewDryRunWorker(sys)
 	}

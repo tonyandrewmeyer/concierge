@@ -8,8 +8,7 @@ execute: |
   # Run dry-run with dev preset and capture output
   output=$("$SPREAD_PATH"/concierge prepare -p dev --dry-run 2>&1)
 
-  # Verify dry-run output contains expected messages
-  # DryRunWorker auto-prints "Would run: <command>" for each operation
+  # Verify dry-run output indicates planned snap installs without executing them
   echo "$output" | MATCH "Would run:.*snap install.*juju"
   echo "$output" | MATCH "Would run:.*snap install.*lxd"
 

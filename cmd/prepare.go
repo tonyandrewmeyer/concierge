@@ -19,7 +19,7 @@ Configuration is by flags/environment variables, or by configuration file. The c
 must be in the current working directory and named 'concierge.yaml', or the path specified using
 the '-c' flag.
 
-There are 3 presets available by default: 'machine', 'k8s' and 'dev'.
+There are 5 presets available by default: 'machine', 'k8s', 'microk8s', 'dev' and 'crafts'.
 
 Some aspects of presets and config files can be overridden using flags such as '--juju-channel'.
 Each of the override flags has an environment variable equivalent, 
@@ -60,7 +60,7 @@ More information at https://github.com/canonical/concierge.
 
 	flags := cmd.Flags()
 	flags.StringP("config", "c", "", "path to a specific config file to use")
-	flags.StringP("preset", "p", "", "config preset to use (k8s | machine | dev)")
+	flags.StringP("preset", "p", "", "config preset to use (machine | k8s | microk8s | dev | crafts)")
 	flags.Bool("disable-juju", false, "disable the installation and bootstrap of juju")
 	flags.String("juju-channel", "", "override the snap channel for juju")
 	flags.String("k8s-channel", "", "override snap channel for the k8s snap")

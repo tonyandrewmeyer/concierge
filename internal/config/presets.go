@@ -1,8 +1,10 @@
 package config
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
-	"path/filepath"
+	"io/fs"
 	"sort"
 	"strings"
 
@@ -32,7 +34,10 @@ func Preset(preset string) (*Config, error) {
 	filename := preset + ".yaml"
 	data, err := presets.FS.ReadFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("unknown preset '%s'", preset)
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, fmt.Errorf("unknown preset '%s'", preset)
+		}
+		return nil, fmt.Errorf("failed to read preset '%s': %w", preset, err)
 	}
 	return loadPreset(data)
 }
@@ -42,7 +47,7 @@ func loadPreset(data []byte) (*Config, error) {
 	v := viper.New()
 	v.SetConfigType("yaml")
 
-	if err := v.ReadConfig(strings.NewReader(string(data))); err != nil {
+	if err := v.ReadConfig(bytes.NewReader(data)); err != nil {
 		return nil, fmt.Errorf("failed to parse preset: %w", err)
 	}
 
@@ -51,10 +56,4 @@ func loadPreset(data []byte) (*Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal preset: %w", err)
 	}
 	return conf, nil
-}
-
-// PresetFilePath returns the path to a preset file within the embedded filesystem.
-// This is useful for constructing paths in installed snaps.
-func PresetFilePath(preset string) string {
-	return filepath.Join("presets", preset+".yaml")
 }

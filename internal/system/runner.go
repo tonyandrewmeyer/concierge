@@ -37,6 +37,8 @@ type System struct {
 	trace bool
 	user  *user.User
 	snapd *snapd.Client
+	// Guards access to cmdMutexes.
+	cmdMu sync.Mutex
 	// Map of mutexes to prevent the concurrent execution of certain commands.
 	cmdMutexes map[string]*sync.Mutex
 }
@@ -54,11 +56,13 @@ func (s *System) Run(c *Command, opts ...RunOption) ([]byte, error) {
 	}
 
 	if cfg.exclusive {
+		s.cmdMu.Lock()
 		mtx, ok := s.cmdMutexes[c.Executable]
 		if !ok {
 			mtx = &sync.Mutex{}
 			s.cmdMutexes[c.Executable] = mtx
 		}
+		s.cmdMu.Unlock()
 		mtx.Lock()
 		defer mtx.Unlock()
 	}

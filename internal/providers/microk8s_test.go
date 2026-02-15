@@ -106,7 +106,7 @@ func TestMicroK8sPrepareCommands(t *testing.T) {
 	}
 
 	expectedFiles := map[string]string{
-		path.Join(os.TempDir(), ".kube", "config"): "",
+		".kube/config": "",
 	}
 
 	system := system.NewMockSystem()

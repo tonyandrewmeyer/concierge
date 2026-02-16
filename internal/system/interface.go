@@ -1,6 +1,7 @@
 package system
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/user"
@@ -8,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/sethvargo/go-retry"
 )
 
 // Worker is an interface for a struct that can run commands on the underlying system.
@@ -56,25 +59,21 @@ func RunExclusive(w Worker, c *Command) ([]byte, error) {
 	return w.Run(c)
 }
 
-// RunWithRetries retries the command using exponential backoff, up to the
-// specified maximum duration.
+// RunWithRetries retries the command using exponential backoff, starting at
+// 1 second. Retries will be attempted up to the specified maximum duration.
 func RunWithRetries(w Worker, c *Command, maxDuration time.Duration) ([]byte, error) {
-	delay := 1 * time.Second
-	deadline := time.Now().Add(maxDuration)
+	backoff := retry.NewExponential(1 * time.Second)
+	backoff = retry.WithMaxDuration(maxDuration, backoff)
+	ctx := context.Background()
 
-	for {
+	return retry.DoValue(ctx, backoff, func(ctx context.Context) ([]byte, error) {
 		output, err := w.Run(c)
-		if err == nil {
-			return output, nil
+		if err != nil {
+			return nil, retry.RetryableError(err)
 		}
 
-		if time.Now().Add(delay).After(deadline) {
-			return output, err
-		}
-
-		time.Sleep(delay)
-		delay *= 2
-	}
+		return output, nil
+	})
 }
 
 // RunMany takes multiple commands and runs them in sequence via the Worker,

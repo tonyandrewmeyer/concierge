@@ -237,7 +237,7 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 	user := j.system.User().Username
 
 	cmd := system.NewCommandAs(user, provider.GroupName(), "juju", bootstrapArgs)
-	_, err = j.system.Run(cmd, system.WithRetries(5*time.Minute))
+	_, err = system.RunWithRetries(j.system, cmd, 5*time.Minute)
 	if err != nil {
 		return err
 	}

@@ -6,28 +6,9 @@ import (
 	"os/user"
 	"path"
 	"strings"
+	"sync"
 	"time"
 )
-
-// RunOption is a functional option for configuring the behaviour of Run.
-type RunOption func(*runConfig)
-
-type runConfig struct {
-	exclusive        bool
-	maxRetryDuration time.Duration
-}
-
-// Exclusive returns a RunOption that causes Run to acquire a per-executable
-// mutex, ensuring only one instance of that executable runs at a time.
-func Exclusive() RunOption {
-	return func(c *runConfig) { c.exclusive = true }
-}
-
-// WithRetries returns a RunOption that causes Run to retry the command using
-// exponential backoff, up to the specified maximum duration.
-func WithRetries(maxDuration time.Duration) RunOption {
-	return func(c *runConfig) { c.maxRetryDuration = maxDuration }
-}
 
 // Worker is an interface for a struct that can run commands on the underlying system.
 type Worker interface {
@@ -35,8 +16,7 @@ type Worker interface {
 	// the current user since the command is often executed with `sudo`.
 	User() *user.User
 	// Run takes a single command and runs it, returning the combined output and an error value.
-	// RunOptions can be provided to alter the behaviour (e.g. Exclusive, WithRetries).
-	Run(c *Command, opts ...RunOption) ([]byte, error)
+	Run(c *Command) ([]byte, error)
 	// ReadFile reads a file with an arbitrary path from the system.
 	ReadFile(filePath string) ([]byte, error)
 	// WriteFile writes the given contents to the specified file path with the given permissions.
@@ -52,6 +32,49 @@ type Worker interface {
 	MkdirAll(path string, perm os.FileMode) error
 	// ChownAll recursively changes the ownership of a path to the specified user.
 	ChownAll(path string, user *user.User) error
+}
+
+// Guards access to cmdMutexes.
+var cmdMu sync.Mutex
+
+// Map of mutexes to prevent the concurrent execution of certain commands.
+var cmdMutexes = map[string]*sync.Mutex{}
+
+// RunExclusive acquires a per-executable mutex before running the command,
+// ensuring only one instance of that executable runs at a time.
+func RunExclusive(w Worker, c *Command) ([]byte, error) {
+	cmdMu.Lock()
+	mtx, ok := cmdMutexes[c.Executable]
+	if !ok {
+		mtx = &sync.Mutex{}
+		cmdMutexes[c.Executable] = mtx
+	}
+	cmdMu.Unlock()
+	mtx.Lock()
+	defer mtx.Unlock()
+
+	return w.Run(c)
+}
+
+// RunWithRetries retries the command using exponential backoff, up to the
+// specified maximum duration.
+func RunWithRetries(w Worker, c *Command, maxDuration time.Duration) ([]byte, error) {
+	delay := 1 * time.Second
+	deadline := time.Now().Add(maxDuration)
+
+	for {
+		output, err := w.Run(c)
+		if err == nil {
+			return output, nil
+		}
+
+		if time.Now().Add(delay).After(deadline) {
+			return output, err
+		}
+
+		time.Sleep(delay)
+		delay *= 2
+	}
 }
 
 // RunMany takes multiple commands and runs them in sequence via the Worker,

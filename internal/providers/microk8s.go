@@ -150,7 +150,7 @@ func (m *MicroK8s) install() error {
 // init ensures that MicroK8s is installed, minimally configured, and ready.
 func (m *MicroK8s) init() error {
 	cmd := system.NewCommand("microk8s", []string{"status", "--wait-ready", "--timeout", "270"})
-	_, err := m.system.Run(cmd, system.WithRetries(5*time.Minute))
+	_, err := system.RunWithRetries(m.system, cmd, 5*time.Minute)
 
 	return err
 }
@@ -166,7 +166,7 @@ func (m *MicroK8s) enableAddons() error {
 		}
 
 		cmd := system.NewCommand("microk8s", []string{"enable", enableArg})
-		_, err := m.system.Run(cmd, system.WithRetries(5*time.Minute))
+		_, err := system.RunWithRetries(m.system, cmd, 5*time.Minute)
 		if err != nil {
 			return fmt.Errorf("failed to enable MicroK8s addon '%s': %w", addon, err)
 		}

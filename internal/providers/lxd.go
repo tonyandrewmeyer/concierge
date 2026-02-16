@@ -122,7 +122,7 @@ func (l *LXD) install() error {
 	if restart {
 		args := []string{"start", l.Name()}
 		cmd := system.NewCommand("snap", args)
-		_, err = l.system.Run(cmd, system.Exclusive())
+		_, err = system.RunExclusive(l.system, cmd)
 		if err != nil {
 			return err
 		}
@@ -186,7 +186,7 @@ func (l *LXD) workaroundRefresh() (bool, error) {
 			"tracking", snapInfo.TrackingChannel, "target", l.Channel)
 		args := []string{"stop", l.Name()}
 		cmd := system.NewCommand("snap", args)
-		_, err = l.system.Run(cmd, system.Exclusive())
+		_, err = system.RunExclusive(l.system, cmd)
 		if err != nil {
 			return false, fmt.Errorf("command failed: %w", err)
 		}

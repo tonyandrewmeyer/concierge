@@ -83,7 +83,7 @@ func (r *MockSystem) User() *user.User {
 }
 
 // Run executes the command, returning the stdout/stderr where appropriate.
-func (r *MockSystem) Run(c *Command, opts ...RunOption) ([]byte, error) {
+func (r *MockSystem) Run(c *Command) ([]byte, error) {
 	r.cmdMutex.Lock()
 	// Prevent the path of the test machine interfering with the test results.
 	path := os.Getenv("PATH")

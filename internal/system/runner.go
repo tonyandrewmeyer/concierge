@@ -1,7 +1,6 @@
 package system
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -11,11 +10,9 @@ import (
 	"os/user"
 	"path/filepath"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/canonical/concierge/internal/snapd"
-	retry "github.com/sethvargo/go-retry"
 )
 
 // NewSystem constructs a new command system.
@@ -25,10 +22,9 @@ func NewSystem(trace bool) (*System, error) {
 		return nil, fmt.Errorf("failed to lookup effective user details: %w", err)
 	}
 	return &System{
-		trace:      trace,
-		user:       realUser,
-		cmdMutexes: map[string]*sync.Mutex{},
-		snapd:      snapd.NewClient(nil),
+		trace: trace,
+		user:  realUser,
+		snapd: snapd.NewClient(nil),
 	}, nil
 }
 
@@ -37,10 +33,6 @@ type System struct {
 	trace bool
 	user  *user.User
 	snapd *snapd.Client
-	// Guards access to cmdMutexes.
-	cmdMu sync.Mutex
-	// Map of mutexes to prevent the concurrent execution of certain commands.
-	cmdMutexes map[string]*sync.Mutex
 }
 
 // User returns a user struct containing details of the "real" user, which
@@ -48,39 +40,7 @@ type System struct {
 func (s *System) User() *user.User { return s.user }
 
 // Run executes the command, returning the stdout/stderr where appropriate.
-// RunOptions can be provided to alter the behaviour (e.g. Exclusive, WithRetries).
-func (s *System) Run(c *Command, opts ...RunOption) ([]byte, error) {
-	var cfg runConfig
-	for _, o := range opts {
-		o(&cfg)
-	}
-
-	if cfg.exclusive {
-		s.cmdMu.Lock()
-		mtx, ok := s.cmdMutexes[c.Executable]
-		if !ok {
-			mtx = &sync.Mutex{}
-			s.cmdMutexes[c.Executable] = mtx
-		}
-		s.cmdMu.Unlock()
-		mtx.Lock()
-		defer mtx.Unlock()
-	}
-
-	if cfg.maxRetryDuration > 0 {
-		backoff := retry.NewExponential(1 * time.Second)
-		backoff = retry.WithMaxDuration(cfg.maxRetryDuration, backoff)
-		ctx := context.Background()
-
-		return retry.DoValue(ctx, backoff, func(ctx context.Context) ([]byte, error) {
-			output, err := s.runOnce(c)
-			if err != nil {
-				return nil, retry.RetryableError(err)
-			}
-			return output, nil
-		})
-	}
-
+func (s *System) Run(c *Command) ([]byte, error) {
 	return s.runOnce(c)
 }
 

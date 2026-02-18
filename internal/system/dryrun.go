@@ -7,8 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
-	"path"
-	"time"
 )
 
 // ErrNotInstalled is returned by DryRunWorker when a read-only command's
@@ -56,52 +54,10 @@ func (d *DryRunWorker) Run(c *Command) ([]byte, error) {
 	return []byte{}, nil
 }
 
-// RunMany prints each command that would be executed and returns success.
-// Read-only commands are delegated to the real system for accurate results.
-func (d *DryRunWorker) RunMany(commands ...*Command) error {
-	for _, c := range commands {
-		if c.ReadOnly {
-			_, err := d.runReadOnly(c)
-			if err != nil {
-				return err
-			}
-		} else {
-			fmt.Fprintln(d.out, c.CommandString())
-		}
-	}
+// WriteFile prints what file would be written and returns success.
+func (d *DryRunWorker) WriteFile(filePath string, contents []byte, perm os.FileMode) error {
+	fmt.Fprintln(d.out, "# Write file:", filePath)
 	return nil
-}
-
-// RunExclusive prints the command that would be executed and returns success.
-// Read-only commands are delegated to the real system for accurate results.
-func (d *DryRunWorker) RunExclusive(c *Command) ([]byte, error) {
-	if c.ReadOnly {
-		return d.runReadOnly(c)
-	}
-	fmt.Fprintln(d.out, c.CommandString())
-	return []byte{}, nil
-}
-
-// RunWithRetries prints the command that would be executed and returns success.
-// Read-only commands are delegated to the real system for accurate results.
-func (d *DryRunWorker) RunWithRetries(c *Command, maxDuration time.Duration) ([]byte, error) {
-	if c.ReadOnly {
-		return d.runReadOnly(c)
-	}
-	fmt.Fprintln(d.out, c.CommandString())
-	return []byte{}, nil
-}
-
-// WriteHomeDirFile prints what file would be written and returns success.
-func (d *DryRunWorker) WriteHomeDirFile(filepath string, contents []byte) error {
-	fullPath := path.Join(d.realSystem.User().HomeDir, filepath)
-	fmt.Fprintln(d.out, "# Write file:", fullPath)
-	return nil
-}
-
-// ReadHomeDirFile delegates to real system for accurate conditional logic.
-func (d *DryRunWorker) ReadHomeDirFile(filepath string) ([]byte, error) {
-	return d.realSystem.ReadHomeDirFile(filepath)
 }
 
 // ReadFile delegates to real system for accurate conditional logic.

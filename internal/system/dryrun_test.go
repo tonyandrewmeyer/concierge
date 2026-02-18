@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/user"
 	"testing"
-	"time"
 )
 
 func TestDryRunWorkerAutoPrintsCommands(t *testing.T) {
@@ -31,38 +30,6 @@ func TestDryRunWorkerAutoPrintsCommands(t *testing.T) {
 		t.Fatalf("Run should print command, got: %q", buf.String())
 	}
 
-	buf.Reset()
-
-	// Test RunMany - should auto-print each command
-	err = drw.RunMany(cmd, cmd)
-	if err != nil {
-		t.Fatalf("RunMany should not return error, got: %v", err)
-	}
-	if buf.String() != "echo hello world\necho hello world\n" {
-		t.Fatalf("RunMany should print 2 commands, got: %q", buf.String())
-	}
-
-	buf.Reset()
-
-	// Test RunExclusive - should auto-print the command
-	output, err = drw.RunExclusive(cmd)
-	if err != nil {
-		t.Fatalf("RunExclusive should not return error, got: %v", err)
-	}
-	if buf.String() != "echo hello world\n" {
-		t.Fatalf("RunExclusive should print command, got: %q", buf.String())
-	}
-
-	buf.Reset()
-
-	// Test RunWithRetries - should auto-print the command
-	output, err = drw.RunWithRetries(cmd, 1*time.Second)
-	if err != nil {
-		t.Fatalf("RunWithRetries should not return error, got: %v", err)
-	}
-	if buf.String() != "echo hello world\n" {
-		t.Fatalf("RunWithRetries should print command, got: %q", buf.String())
-	}
 }
 
 func TestDryRunWorkerAutoPrintsFileOperations(t *testing.T) {
@@ -76,14 +43,13 @@ func TestDryRunWorkerAutoPrintsFileOperations(t *testing.T) {
 		out:        &buf,
 	}
 
-	// Test WriteHomeDirFile - should print as a comment (not directly executable)
-	err := drw.WriteHomeDirFile("test/path", []byte("content"))
+	// Test WriteFile - should print as a comment (not directly executable)
+	err := drw.WriteFile("/test/path", []byte("content"), 0644)
 	if err != nil {
-		t.Fatalf("WriteHomeDirFile should not return error, got: %v", err)
+		t.Fatalf("WriteFile should not return error, got: %v", err)
 	}
-	expectedPath := mock.User().HomeDir + "/test/path"
-	if buf.String() != "# Write file: "+expectedPath+"\n" {
-		t.Fatalf("WriteHomeDirFile should print file path, got: %q", buf.String())
+	if buf.String() != "# Write file: /test/path\n" {
+		t.Fatalf("WriteFile should print file path, got: %q", buf.String())
 	}
 
 	buf.Reset()
@@ -193,15 +159,6 @@ func TestDryRunWorkerDelegatesReadOperations(t *testing.T) {
 	}
 	if string(content) != "test content" {
 		t.Fatalf("ReadFile should return mock content, got: %s", string(content))
-	}
-
-	// Test ReadHomeDirFile delegates to real system
-	content, err = drw.ReadHomeDirFile("home/dir/file.txt")
-	if err != nil {
-		t.Fatalf("ReadHomeDirFile should delegate to real system, got error: %v", err)
-	}
-	if string(content) != "home content" {
-		t.Fatalf("ReadHomeDirFile should return mock content, got: %s", string(content))
 	}
 
 	// Test SnapInfo delegates to real system

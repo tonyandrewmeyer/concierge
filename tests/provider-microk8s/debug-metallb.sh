@@ -57,10 +57,11 @@ collect_state() {
     # Check image pull status
     microk8s ctr images list 2>/dev/null | grep -i metallb > "$dir/containerd-images.txt" 2>&1 || true
 
-    # Pod logs if pods exist
+    # Pod logs if pods exist (current + previous for crash-looping containers)
     for pod in $(microk8s kubectl get pods -n metallb-system -o name 2>/dev/null); do
         local pod_name="${pod#pod/}"
         microk8s kubectl logs "$pod" -n metallb-system --all-containers > "$dir/logs-${pod_name}.txt" 2>&1 || true
+        microk8s kubectl logs "$pod" -n metallb-system --all-containers --previous > "$dir/logs-${pod_name}-previous.txt" 2>&1 || true
     done
 
     # MicroK8s addon status
@@ -134,6 +135,30 @@ print_summary() {
     if [ -f "$dir/memory.txt" ]; then
         echo "-- Memory --"
         cat "$dir/memory.txt"
+    fi
+
+    # Print pod logs for metallb pods (current and previous)
+    for logfile in "$dir"/logs-*.txt; do
+        if [ -f "$logfile" ] && [ -s "$logfile" ]; then
+            local log_name
+            log_name="$(basename "$logfile" .txt | sed 's/^logs-//')"
+            echo "-- Pod logs: ${log_name} --"
+            cat "$logfile"
+        fi
+    done
+
+    # Print logs for other crash-looping kube-system pods (coredns, calico, etc.)
+    if [ -f "$dir/pods-all.txt" ]; then
+        for crashing_pod in $(awk '/CrashLoopBackOff|Error|CreateContainerConfigError/ {print $1 ":" $2}' "$dir/pods-all.txt" 2>/dev/null); do
+            local ns="${crashing_pod%%:*}"
+            local pod="${crashing_pod#*:}"
+            if [ "$ns" != "metallb-system" ] && [ -n "$pod" ]; then
+                echo "-- Pod logs: ${ns}/${pod} --"
+                microk8s kubectl logs -n "$ns" "$pod" --all-containers --tail=50 2>&1 || true
+                echo "-- Previous pod logs: ${ns}/${pod} --"
+                microk8s kubectl logs -n "$ns" "$pod" --all-containers --previous --tail=50 2>&1 || true
+            fi
+        done
     fi
 
     echo "=== End summary for ${label} ==="

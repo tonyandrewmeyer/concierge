@@ -12,7 +12,7 @@ execute: |
   sudo k8s status --wait-ready --timeout 120s
 
   # Now run concierge prepare against the already-bootstrapped cluster.
-  "$SPREAD_PATH"/concierge --trace prepare
+  "$SPREAD_PATH"/concierge --trace prepare --extra-snaps="yq"
 
   # Verify the cluster is still healthy after concierge prepare.
   sudo k8s status --wait-ready --timeout 120s

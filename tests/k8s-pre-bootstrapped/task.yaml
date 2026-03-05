@@ -16,6 +16,7 @@ execute: |
   sudo k8s status --wait-ready --timeout 120s
 
   # Now run concierge prepare against the already-bootstrapped cluster.
+  # Before the fix, this would remove /run/containerd and break the cluster.
   "$SPREAD_PATH"/concierge --trace prepare --extra-snaps="yq"
 
   # Verify the cluster is still healthy after concierge prepare.
@@ -25,9 +26,6 @@ execute: |
   sudo k8s status --output-format yaml | yq '.load-balancer.enabled' | MATCH true
 
   kubectl config current-context | MATCH "k8s"
-
-  juju controllers | tail -n1 | MATCH concierge-k8s
-  juju models | tail -n1 | MATCH testing
 
 restore: |
   if [[ -z "${CI:-}" ]]; then

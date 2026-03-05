@@ -7,12 +7,11 @@ execute: |
   pushd "${SPREAD_PATH}/${SPREAD_TASK}"
 
   # Install and bootstrap k8s before concierge runs.
-  sudo snap install k8s --channel 1.32-classic/stable
+  sudo snap install k8s --channel 1.32-classic/stable --classic
   sudo k8s bootstrap
   sudo k8s status --wait-ready --timeout 120s
 
   # Now run concierge prepare against the already-bootstrapped cluster.
-  # Before the fix, this would remove /run/containerd and break the cluster.
   "$SPREAD_PATH"/concierge --trace prepare
 
   # Verify the cluster is still healthy after concierge prepare.
@@ -29,4 +28,5 @@ execute: |
 restore: |
   if [[ -z "${CI:-}" ]]; then
     "$SPREAD_PATH"/concierge --trace restore
+    sudo snap remove k8s --purge
   fi

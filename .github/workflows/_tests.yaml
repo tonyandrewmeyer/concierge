@@ -43,7 +43,7 @@ jobs:
           GOARCH: ${{ inputs.arch }}
 
       - name: Upload binary artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: binary-${{ inputs.runner }}
           path: ./concierge
@@ -113,7 +113,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download binary artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: binary-${{ inputs.runner }}
 

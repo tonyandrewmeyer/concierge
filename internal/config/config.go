@@ -154,8 +154,8 @@ func envOrFlagSlice(flags *pflag.FlagSet, key string) []string {
 	value, _ := flags.GetStringSlice(key)
 
 	if v := viper.GetString(key); v != "" {
-		parts := strings.Split(v, ",")
-		for _, p := range parts {
+		parts := strings.SplitSeq(v, ",")
+		for p := range parts {
 			extraValue := p
 			value = append(value, extraValue)
 		}

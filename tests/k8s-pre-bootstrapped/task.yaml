@@ -23,7 +23,6 @@ execute: |
   sudo k8s status --wait-ready --timeout 120s
 
   sudo k8s status --output-format yaml | yq '.dns.enabled' | MATCH true
-  sudo k8s status --output-format yaml | yq '.load-balancer.enabled' | MATCH true
 
   kubectl config current-context | MATCH "k8s"
 

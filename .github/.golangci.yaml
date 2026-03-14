@@ -1,0 +1,11 @@
+version: "2"
+
+linters:
+  enable:
+    - gosec
+    - govet
+    - staticcheck
+
+issues:
+  exclude-dirs:
+    - vendor

@@ -1,0 +1,111 @@
+name: "Reproducer: MicroK8s strict socket permission denied"
+
+# Minimal reproducer for socket: permission denied in MicroK8s strict confinement
+# on GitHub Actions ubuntu-24.04 runners.
+#
+# Pods running inside MicroK8s (strict) cannot create sockets, causing all
+# pods that need network access (coredns, calico-kube-controllers, metallb,
+# etc.) to crash with "socket: permission denied".
+#
+# This started around early February 2026, likely due to a GitHub Actions
+# runner image update (kernel 6.14.0-1017-azure).
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - debug/metallb-timeout
+
+jobs:
+  reproducer:
+    name: MicroK8s strict socket reproducer
+    runs-on: ubuntu-24.04
+    steps:
+      - name: System info
+        run: |
+          echo "=== Runner environment ==="
+          uname -a
+          cat /etc/os-release
+          free -h
+          nproc
+          echo "=== AppArmor status ==="
+          sudo aa-status --verbose 2>&1 | head -30 || true
+          echo "=== Seccomp ==="
+          grep -i seccomp /boot/config-$(uname -r) 2>/dev/null || true
+
+      - name: Install MicroK8s (strict)
+        run: |
+          sudo snap install microk8s --channel=1.31-strict/stable
+          sudo microk8s status --wait-ready --timeout 120
+
+      - name: Show initial pod status
+        run: |
+          echo "=== Pod status ==="
+          sudo microk8s kubectl get pods -A -o wide
+          echo ""
+          echo "=== Node status ==="
+          sudo microk8s kubectl get nodes -o wide
+
+      - name: Wait and check for socket errors
+        run: |
+          echo "Waiting 60s for pods to attempt networking..."
+          sleep 60
+
+          echo "=== Pod status after 60s ==="
+          sudo microk8s kubectl get pods -A -o wide
+          echo ""
+
+          # Check coredns logs for socket error
+          echo "=== CoreDNS logs ==="
+          coredns_pod=$(sudo microk8s kubectl get pods -n kube-system -l k8s-app=kube-dns -o name 2>/dev/null | head -1)
+          if [ -n "$coredns_pod" ]; then
+            sudo microk8s kubectl logs -n kube-system "$coredns_pod" --all-containers 2>&1 || true
+            sudo microk8s kubectl logs -n kube-system "$coredns_pod" --all-containers --previous 2>&1 || true
+          fi
+          echo ""
+
+          # Check calico-kube-controllers logs
+          echo "=== Calico kube-controllers logs ==="
+          calico_pod=$(sudo microk8s kubectl get pods -n kube-system -l k8s-app=calico-kube-controllers -o name 2>/dev/null | head -1)
+          if [ -n "$calico_pod" ]; then
+            sudo microk8s kubectl logs -n kube-system "$calico_pod" --all-containers 2>&1 || true
+            sudo microk8s kubectl logs -n kube-system "$calico_pod" --all-containers --previous 2>&1 || true
+          fi
+          echo ""
+
+          # Check events
+          echo "=== Cluster events ==="
+          sudo microk8s kubectl get events -A --sort-by='.lastTimestamp' 2>&1 | tail -30
+
+      - name: Verify the bug
+        run: |
+          echo "Checking for 'socket: permission denied' in pod logs..."
+          found=false
+
+          for pod in $(sudo microk8s kubectl get pods -A -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}{"\n"}{end}' 2>/dev/null); do
+            ns="${pod%%/*}"
+            name="${pod#*/}"
+            logs=$(sudo microk8s kubectl logs -n "$ns" "$name" --all-containers --previous 2>/dev/null || true)
+            if echo "$logs" | grep -q "socket: permission denied"; then
+              echo "FOUND in $pod (previous):"
+              echo "$logs" | grep "socket: permission denied" | head -3
+              found=true
+            fi
+            logs=$(sudo microk8s kubectl logs -n "$ns" "$name" --all-containers 2>/dev/null || true)
+            if echo "$logs" | grep -q "socket: permission denied"; then
+              echo "FOUND in $pod (current):"
+              echo "$logs" | grep "socket: permission denied" | head -3
+              found=true
+            fi
+          done
+
+          if [ "$found" = true ]; then
+            echo ""
+            echo "=== BUG CONFIRMED ==="
+            echo "Pods in MicroK8s strict confinement cannot create sockets."
+            echo "This prevents coredns, calico, metallb, and any other pod"
+            echo "that needs network access from functioning."
+            exit 1
+          else
+            echo "Bug not reproduced - pods did not report socket: permission denied"
+          fi

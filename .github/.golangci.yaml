@@ -2,10 +2,13 @@ version: "2"
 
 linters:
   enable:
+    - bodyclose
+    - errcheck
     - gosec
     - govet
+    - noctx
     - staticcheck
 
-issues:
-  exclude-dirs:
-    - vendor
+linters-settings:
+  govet:
+    enable-all: true

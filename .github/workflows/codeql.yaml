@@ -15,8 +15,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  analyze:
-    name: Analyze Go
+  analyse:
+    name: Analyse Go
     runs-on: ubuntu-latest
 
     permissions:

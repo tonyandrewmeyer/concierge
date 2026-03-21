@@ -67,7 +67,7 @@ func TestSnap_Success(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(&Config{Socket: socketPath})
-	snap, err := client.Snap(context.Background(),"test-snap")
+	snap, err := client.Snap(context.Background(), "test-snap")
 
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
@@ -97,7 +97,7 @@ func TestSnap_NotFound(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(&Config{Socket: socketPath})
-	_, err := client.Snap(context.Background(),"nonexistent")
+	_, err := client.Snap(context.Background(), "nonexistent")
 
 	if err == nil {
 		t.Fatal("Expected error for non-existent snap")
@@ -121,7 +121,7 @@ func TestSnap_UnexpectedStatusCode(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(&Config{Socket: socketPath})
-	_, err := client.Snap(context.Background(),"test-snap")
+	_, err := client.Snap(context.Background(), "test-snap")
 
 	if err == nil {
 		t.Fatal("Expected error for 500 status code")
@@ -174,7 +174,7 @@ func TestFindOne_Success(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(&Config{Socket: socketPath})
-	snap, err := client.FindOne(context.Background(),"test-snap")
+	snap, err := client.FindOne(context.Background(), "test-snap")
 
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
@@ -201,7 +201,7 @@ func TestFindOne_NotFound(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(&Config{Socket: socketPath})
-	_, err := client.FindOne(context.Background(),"nonexistent")
+	_, err := client.FindOne(context.Background(), "nonexistent")
 
 	if err == nil {
 		t.Fatal("Expected error for non-existent snap")
@@ -233,7 +233,7 @@ func TestFindOne_EmptyResults(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(&Config{Socket: socketPath})
-	_, err := client.FindOne(context.Background(),"nonexistent")
+	_, err := client.FindOne(context.Background(), "nonexistent")
 
 	if err == nil {
 		t.Fatal("Expected error for empty results")

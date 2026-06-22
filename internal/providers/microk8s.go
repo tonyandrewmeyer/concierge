@@ -66,15 +66,17 @@ func (m *MicroK8s) Prepare() error {
 		return fmt.Errorf("failed to install MicroK8s: %w", err)
 	}
 
-	// Configure image registry before waiting for MicroK8s to be ready
-	err = m.configureImageRegistry()
-	if err != nil {
-		return fmt.Errorf("failed to configure image registry: %w", err)
-	}
-
+	// Wait for MicroK8s to be ready before configuring the image registry:
+	// `microk8s stop` fails with "service-control change in progress" if
+	// snapd is still bringing the snap's services up after install.
 	err = m.init()
 	if err != nil {
 		return fmt.Errorf("failed to initialize MicroK8s: %w", err)
+	}
+
+	err = m.configureImageRegistry()
+	if err != nil {
+		return fmt.Errorf("failed to configure image registry: %w", err)
 	}
 
 	err = m.enableAddons()
@@ -193,7 +195,9 @@ func (m *MicroK8s) configureImageRegistry() error {
 		return fmt.Errorf("failed to start MicroK8s: %w", err)
 	}
 
-	return nil
+	// Wait for services to come back up before downstream steps run
+	// commands that assume a ready cluster.
+	return m.init()
 }
 
 // buildHostsToml generates the hosts.toml configuration for containerd using

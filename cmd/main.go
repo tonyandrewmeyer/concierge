@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"os/user"
+	"runtime/debug"
 
 	"github.com/spf13/pflag"
 )
@@ -13,6 +14,11 @@ var (
 	version string = "dev"
 	commit  string = "dev"
 )
+
+func init() {
+	bi, ok := debug.ReadBuildInfo()
+	version, commit = resolveVersion(version, commit, bi, ok)
+}
 
 // Execute runs the root command and exits the program if it fails.
 func Execute() {

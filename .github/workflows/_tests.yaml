@@ -74,7 +74,10 @@ jobs:
         env:
           ARCH: ${{ inputs.arch }}
         run: |
-          list="$(spread -list github-ci | sed "s|github-ci:ubuntu-24.04:tests/||g" | jq -r -ncR '[inputs | select(length>0)]')"
+          # Enumerate suite names from a single system; the same suites apply
+          # to every system declared on the github-ci backend, so the (system,
+          # suite) cross-product is built at the matrix level below.
+          list="$(spread -list github-ci:ubuntu-24.04 | sed "s|github-ci:ubuntu-24.04:tests/||g" | jq -r -ncR '[inputs | select(length>0)]')"
           case $ARCH in
             ppc64le|s390x)
               skip='{
@@ -102,7 +105,7 @@ jobs:
           echo "suites=$list" >> $GITHUB_OUTPUT
 
   spread-test:
-    name: Spread (${{ matrix.suite }})
+    name: Spread (${{ matrix.suite }}, ${{ matrix.base }})
     runs-on: ${{ inputs.runner }}
     needs:
       - binaries
@@ -110,6 +113,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        base: [ubuntu-24.04, ubuntu-26.04]
         suite: ${{ fromJSON(needs.define-matrix.outputs.suites) }}
     steps:
       - name: Checkout
@@ -135,5 +139,6 @@ jobs:
       - name: Run integration tests
         env:
           SUITE: ${{ matrix.suite }}
+          BASE: ${{ matrix.base }}
         run: |
-          spread -v "github-ci:ubuntu-24.04:tests/${SUITE}"
+          spread -v "github-ci:${BASE}:tests/${SUITE}"

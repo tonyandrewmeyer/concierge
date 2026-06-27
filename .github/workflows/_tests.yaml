@@ -6,7 +6,11 @@ on:
       arch:
         required: true
         type: string
-      runner:
+      bases:
+        # JSON array of {base, runner} entries. Each base is a spread system
+        # label declared in spread.yaml; runner is the GHA runner label whose
+        # OS matches that base (the github-ci backend is adhoc-on-localhost,
+        # so the runner's OS must match the system label spread is asked for).
         required: true
         type: string
 
@@ -46,14 +50,14 @@ jobs:
       - name: Upload binary artifact
         uses: actions/upload-artifact@v7
         with:
-          name: binary-${{ inputs.runner }}
+          name: binary-${{ inputs.arch }}
           path: ./concierge
 
   define-matrix:
     name: Define spread matrix
     runs-on: ubuntu-latest
     outputs:
-      suites: ${{ steps.suites.outputs.suites }}
+      matrix: ${{ steps.suites.outputs.matrix }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -73,10 +77,11 @@ jobs:
         id: suites
         env:
           ARCH: ${{ inputs.arch }}
+          BASES: ${{ inputs.bases }}
         run: |
           # Enumerate suite names from a single system; the same suites apply
           # to every system declared on the github-ci backend, so the (system,
-          # suite) cross-product is built at the matrix level below.
+          # suite) cross-product is built here as a flat include list.
           list="$(spread -list github-ci:ubuntu-24.04 | sed "s|github-ci:ubuntu-24.04:tests/||g" | jq -r -ncR '[inputs | select(length>0)]')"
           case $ARCH in
             ppc64le|s390x)
@@ -101,20 +106,20 @@ jobs:
               echo "Unknown architecture $ARCH, using all tests."
               ;;
           esac
-          echo "suites=$list"
-          echo "suites=$list" >> $GITHUB_OUTPUT
+          matrix=$(jq -c -n --argjson suites "$list" --argjson bases "$BASES" \
+            '{include: [ $bases[] as $b | $suites[] | {suite: ., base: $b.base, runner: $b.runner} ]}')
+          echo "matrix=$matrix"
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
   spread-test:
     name: Spread (${{ matrix.suite }}, ${{ matrix.base }})
-    runs-on: ${{ inputs.runner }}
+    runs-on: ${{ matrix.runner }}
     needs:
       - binaries
       - define-matrix
     strategy:
       fail-fast: false
-      matrix:
-        base: [ubuntu-24.04, ubuntu-26.04]
-        suite: ${{ fromJSON(needs.define-matrix.outputs.suites) }}
+      matrix: ${{ fromJSON(needs.define-matrix.outputs.matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -124,7 +129,7 @@ jobs:
       - name: Download binary artifact
         uses: actions/download-artifact@v8
         with:
-          name: binary-${{ inputs.runner }}
+          name: binary-${{ inputs.arch }}
 
       - name: Setup Go
         uses: actions/setup-go@v6

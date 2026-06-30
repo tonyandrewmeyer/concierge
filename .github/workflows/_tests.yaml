@@ -7,7 +7,7 @@ on:
         required: true
         type: string
       bases:
-        # JSON array of {base, runner} entries. Each base is a spread system
+        # JSON array of {"base": "...", "runner": "..."} entries. Each base is a spread system
         # label declared in spread.yaml; runner is the GHA runner label whose
         # OS matches that base (the github-ci backend is adhoc-on-localhost,
         # so the runner's OS must match the system label spread is asked for).
@@ -118,6 +118,8 @@ jobs:
             "dry-run-prepare", "dry-run-restore", "restore", "restore-without-prepare"
           ]'
 
+          # critical/extras are GHA matrix configs: {"include": [ {"suite": "...", "base": "...", "runner": "..."}, ... ]}.
+          # The cross-product of $bases x $suites is split by membership in critical_suites.
           critical=$(jq -c -n --argjson suites "$list" --argjson bases "$BASES" --argjson crit "$critical_suites" \
             '{include: [ $bases[] as $b | $suites[] | select(. as $s | $crit | index($s)) | {suite: ., base: $b.base, runner: $b.runner} ]}')
           extras=$(jq -c -n --argjson suites "$list" --argjson bases "$BASES" --argjson crit "$critical_suites" \

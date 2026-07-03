@@ -4,8 +4,6 @@ import (
 	"os"
 	"reflect"
 	"testing"
-
-	"github.com/spf13/viper"
 )
 
 func TestFlagToEnvVar(t *testing.T) {
@@ -13,8 +11,6 @@ func TestFlagToEnvVar(t *testing.T) {
 		flag     string
 		expected string
 	}
-
-	viper.SetEnvPrefix("CONCIERGE")
 
 	tests := []test{
 		{flag: "juju-channel", expected: "CONCIERGE_JUJU_CHANNEL"},
@@ -208,20 +204,9 @@ providers:
 		t.Fatal(err)
 	}
 
-	// Reset viper
-	viper.Reset()
-	viper.SetConfigType("yaml")
-	viper.SetConfigFile(tmpFile.Name())
-
-	err = viper.ReadInConfig()
+	cfg, err := parseConfig(tmpFile.Name())
 	if err != nil {
-		t.Fatalf("Failed to read config: %v", err)
-	}
-
-	cfg := &Config{}
-	err = viper.Unmarshal(cfg)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal config: %v", err)
+		t.Fatalf("Failed to parse config: %v", err)
 	}
 
 	expected := "--config idle-connection-timeout=90s --auto-upgrade=true"
@@ -310,20 +295,9 @@ providers:
 		t.Fatal(err)
 	}
 
-	// Reset viper
-	viper.Reset()
-	viper.SetConfigType("yaml")
-	viper.SetConfigFile(tmpFile.Name())
-
-	err = viper.ReadInConfig()
+	cfg, err := parseConfig(tmpFile.Name())
 	if err != nil {
-		t.Fatalf("Failed to read config: %v", err)
-	}
-
-	cfg := &Config{}
-	err = viper.Unmarshal(cfg)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal config: %v", err)
+		t.Fatalf("Failed to parse config: %v", err)
 	}
 
 	// Test MicroK8s image registry
@@ -374,24 +348,10 @@ providers:
 		t.Fatal(err)
 	}
 
-	// Reset viper
-	viper.Reset()
-	viper.SetConfigType("yaml")
-	viper.SetConfigFile(tmpFile.Name())
-
-	err = viper.ReadInConfig()
+	cfg, err := parseConfig(tmpFile.Name())
 	if err != nil {
-		t.Fatalf("Failed to read config: %v", err)
+		t.Fatalf("Failed to parse config: %v", err)
 	}
-
-	cfg := &Config{}
-	err = viper.Unmarshal(cfg)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal config: %v", err)
-	}
-
-	// Expand environment variables
-	expandConfigEnvVars(cfg)
 
 	// Test that environment variables were expanded
 	if cfg.Providers.MicroK8s.ImageRegistry.URL != "https://dockerhub-mirror.example.com" {

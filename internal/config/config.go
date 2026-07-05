@@ -14,7 +14,7 @@ import (
 )
 
 // envPrefix is prepended to flag names to form the environment variable
-// consulted for config overrides (e.g. flag "juju-channel" -> env var
+// consulted for config overrides (for example, flag "juju-channel" -> env var
 // "CONCIERGE_JUJU_CHANNEL").
 const envPrefix = "CONCIERGE"
 

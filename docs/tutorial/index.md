@@ -12,7 +12,7 @@ a preset, checking its status, and restoring the machine to its original state.
 
 ## What you will need
 
-- A fresh Ubuntu 22.04 or 24.04 machine (a VM, LXD container with nesting, or a
+- A fresh Ubuntu 24.04 or 26.04 machine (a VM, LXD container with nesting, or a
   dedicated cloud instance). Concierge makes broad changes to the system, so do
   not run it against a machine you rely on for other work.
 - `sudo` privileges.
@@ -24,12 +24,6 @@ Install the snap:
 
 ```bash
 sudo snap install --classic concierge
-```
-
-Confirm the version:
-
-```bash
-concierge --version
 ```
 
 ## Prepare a machine

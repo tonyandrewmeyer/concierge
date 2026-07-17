@@ -52,7 +52,7 @@ Concierge is a member of the Ubuntu family and released under the
 
 - [Report a bug or request a feature](https://github.com/canonical/concierge/issues)
 - [Contribute](https://github.com/canonical/concierge/blob/main/CONTRIBUTING.md)
-- [Report a security issue](project:./security.md)
+- [Report a security issue](project:./explanation/security.md)
 
 ```{toctree}
 :hidden:
@@ -62,5 +62,4 @@ tutorial/index
 how-to/index
 reference/index
 explanation/index
-security
 ```

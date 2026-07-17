@@ -1,7 +1,7 @@
 ---
 myst:
   html_meta:
-    description: Focused, task-oriented guides for using Concierge — writing a custom config, providing cloud credentials, and previewing changes.
+    description: Focused, task-oriented guides for using Concierge — writing a custom config and providing cloud credentials.
 ---
 
 (how-to)=
@@ -14,5 +14,4 @@ Focused, task-oriented guides for people who already know the basics.
 
 write-a-custom-config
 provide-credentials
-preview-changes
 ```

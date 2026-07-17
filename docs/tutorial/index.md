@@ -79,7 +79,6 @@ those things beforehand. Run it only on machines you're happy to reset.
 
 - Adapt one of the built-in [presets](../reference/presets) into a
   [custom config](../how-to/write-a-custom-config).
-- Preview changes before they happen with [dry-run mode](../how-to/preview-changes).
 
 ```{toctree}
 :hidden:

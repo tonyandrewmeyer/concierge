@@ -92,7 +92,3 @@ providers:
 
 Every field is documented in the [configuration schema](../reference/configuration).
 
-## Try it without side effects
-
-Before running `prepare` for real, use [dry-run mode](preview-changes) to see
-exactly what Concierge would do.

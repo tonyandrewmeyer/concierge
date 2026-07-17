@@ -33,6 +33,7 @@ Concierge selects its configuration in this order:
 1. `-c, --config <path>` — an explicit config file.
 2. `-p, --preset <name>` — one of the built-in [presets](presets).
 3. A `concierge.yaml` file in the current working directory.
+4. The `dev` preset, if none of the above are found.
 
 ### Flags
 

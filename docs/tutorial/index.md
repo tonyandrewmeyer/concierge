@@ -58,7 +58,8 @@ Concierge configures Juju for you. List the controllers to confirm:
 juju controllers
 ```
 
-You can now use Juju as normal.
+You can now use Juju as normal — start with the [Juju
+documentation](https://documentation.ubuntu.com/juju/latest/).
 
 ## Restore the machine
 

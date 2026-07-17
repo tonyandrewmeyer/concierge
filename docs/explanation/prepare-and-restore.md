@@ -17,9 +17,11 @@ detect. It computes what `prepare` **would install** from the same
 configuration, and removes exactly that set. This makes restore predictable
 and cheap, but it has a consequence:
 
-> If the machine already had one of Concierge's snaps, packages, or
-> configuration files before you ran `prepare`, `restore` will remove it
-> anyway.
+:::{warning}
+If the machine already had one of Concierge's snaps, packages, or
+configuration files before you ran `prepare`, `restore` will remove it
+anyway.
+:::
 
 For that reason, Concierge is intended for **throwaway** machines — VMs, CI
 runners, dedicated test hosts — not for the workstation you use for

@@ -104,7 +104,7 @@ rst_prolog = """
 """
 
 intersphinx_mapping = {
-    "juju": ("https://documentation.ubuntu.com/juju/latest/", None),
-    "ops": ("https://documentation.ubuntu.com/ops/latest/", None),
-    "charmcraft": ("https://canonical-charmcraft.readthedocs-hosted.com/stable/", None),
+    "juju": ("https://canonical.com/juju/docs/juju-cli/latest/", None),
+    "ops": ("https://canonical.com/juju/docs/ops/latest/", None),
+    "charmcraft": ("https://canonical.com/juju/docs/charmcraft/4.3/", None),
 }

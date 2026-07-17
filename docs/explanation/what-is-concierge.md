@@ -26,7 +26,7 @@ directly. Concierge doesn't sit in the loop.
 Concierge is also not a **charm-development tutorial**. It gets you a machine
 that is ready to develop charms; learning how to develop charms happens
 elsewhere (see the [Ops
-documentation](https://documentation.ubuntu.com/ops/) for that).
+documentation](https://canonical.com/juju/docs/ops/latest/) for that).
 
 ## Where Concierge fits
 

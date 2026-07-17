@@ -7,10 +7,15 @@ myst:
 (how-to-write-a-custom-config)=
 # Write a custom config
 
-When the built-in [presets](../reference/presets) don't fit your needs, provide
-your own configuration. Concierge reads a YAML file named `concierge.yaml`
-from the current directory when you pass `-c concierge.yaml`, or when you run
-`sudo concierge prepare` with no preset.
+When the built-in [presets](../reference/presets) don't fit your needs, write
+your own YAML configuration file and point Concierge at it:
+
+```bash
+sudo concierge prepare -c path/to/your-config.yaml
+```
+
+If you name the file `concierge.yaml` and run `sudo concierge prepare` from
+its directory with no `-p` or `-c`, Concierge will pick it up automatically.
 
 The best starting point is the preset that most closely matches what you want.
 

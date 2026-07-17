@@ -23,13 +23,13 @@ For example, a Google credential file:
 
 ```yaml
 auth-type: oauth2
-client-email: juju-gce-1-sa@myname.iam.gserviceaccount.com
+client-email: juju-gce-1-sa@example.iam.gserviceaccount.com
 client-id: "1234567891234"
 private-key: |
   -----BEGIN PRIVATE KEY-----
   deadbeef
   -----END PRIVATE KEY-----
-project-id: foobar
+project-id: example
 ```
 
 ## Extract from existing Juju credentials

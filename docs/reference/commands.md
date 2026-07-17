@@ -22,10 +22,10 @@ The following flags apply to every command.
 
 ## `concierge prepare`
 
-Provision the machine according to the configuration.
+Provision the machine according to the configuration. Must be run as root.
 
 ```
-concierge prepare [flags]
+sudo concierge prepare [flags]
 ```
 
 Concierge selects its configuration in this order:
@@ -57,10 +57,10 @@ Concierge selects its configuration in this order:
 ## `concierge restore`
 
 Run the reverse of `concierge prepare`, removing everything Concierge would
-have installed.
+have installed. Must be run as root.
 
 ```
-concierge restore [flags]
+sudo concierge restore [flags]
 ```
 
 ### Flags

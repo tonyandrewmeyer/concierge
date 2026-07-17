@@ -44,11 +44,3 @@ To build the docs locally:
 ```shell
 make -C docs run
 ```
-
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md).
-
-## Security
-
-See [SECURITY.md](./SECURITY.md).

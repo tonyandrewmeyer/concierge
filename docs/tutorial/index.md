@@ -44,7 +44,7 @@ to take several minutes.
 Once `prepare` finishes, ask Concierge what it did:
 
 ```bash
-concierge status
+sudo concierge status
 ```
 
 You should see the providers that were bootstrapped, the snaps and packages

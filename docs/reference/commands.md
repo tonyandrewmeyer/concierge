@@ -69,9 +69,10 @@ restore](../explanation/prepare-and-restore) for the reasoning.
 
 Report the status of Concierge on the machine — which providers are up, which
 Juju controllers are bootstrapped, and which snaps and packages are installed.
+Must be run as root.
 
 ```
-concierge status
+sudo concierge status
 ```
 
 ## Global flags

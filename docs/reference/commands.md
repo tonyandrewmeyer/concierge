@@ -7,8 +7,18 @@ myst:
 (reference-commands)=
 # Commands
 
-Concierge has three primary commands. All commands accept the global flags
-listed at the end.
+Concierge has three primary commands: `prepare`, `restore`, and `status`.
+
+## Global flags
+
+The following flags apply to every command.
+
+| Flag              | Description                     |
+| :---------------- | :------------------------------ |
+| `-v, --verbose`   | Enable verbose logging.         |
+| `--trace`         | Enable trace logging.           |
+| `-h, --help`      | Show help for the command.      |
+| `--version`       | Print the Concierge version.    |
 
 ## `concierge prepare`
 
@@ -74,14 +84,3 @@ Must be run as root.
 ```
 sudo concierge status
 ```
-
-## Global flags
-
-The following flags apply to every command.
-
-| Flag              | Description                     |
-| :---------------- | :------------------------------ |
-| `-v, --verbose`   | Enable verbose logging.         |
-| `--trace`         | Enable trace logging.           |
-| `-h, --help`      | Show help for the command.      |
-| `--version`       | Print the Concierge version.    |

@@ -21,21 +21,9 @@ The best starting point is the preset that most closely matches what you want.
 
 ## Start from a preset
 
-Copy the preset you want to adapt. If you installed Concierge from the snap,
-the preset files are not on disk locally; fetch them from the repository:
-
-```bash
-curl -o concierge.yaml \
-  https://raw.githubusercontent.com/canonical/concierge/main/presets/dev.yaml
-```
-
-Or, if you built Concierge from source:
-
-```bash
-cp $(go env GOPATH)/src/github.com/canonical/concierge/presets/dev.yaml concierge.yaml
-```
-
-Edit the file to suit your needs, then run:
+Open the [presets reference page](../reference/presets), find the preset that
+most closely matches what you want, and copy its YAML into a local file — for
+example, `concierge.yaml`. Edit it to suit your needs, then run:
 
 ```bash
 sudo concierge prepare -c concierge.yaml

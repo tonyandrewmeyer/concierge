@@ -12,10 +12,11 @@ ogp_site_name = project
 ogp_image = "https://assets.ubuntu.com/v1/cc828679-docs_illustration.svg"
 
 html_context = {
-    "product_page": "github.com/canonical/concierge",
-    "discourse": "",
+    "product_page": "canonical.com/juju/docs",
+    "product_tag": "_static/logos/juju-logo-no-text.png",
+    "discourse": "https://discourse.charmhub.io",
     "mattermost": "",
-    "matrix": "",
+    "matrix": "https://matrix.to/#/#charmhub-charmdev:ubuntu.com",
     "github_url": "https://github.com/canonical/concierge",
     "repo_default_branch": "main",
     "repo_folder": "/docs/",
@@ -36,6 +37,9 @@ html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "/")
 sitemap_url_scheme = "{link}"
 sitemap_show_lastmod = True
 sitemap_excludes = ["404/", "genindex/", "search/"]
+
+html_static_path = ["_static"]
+templates_path = ["_templates"]
 
 rediraffe_redirects = "redirects.txt"
 rediraffe_dir_only = True
@@ -90,6 +94,14 @@ exclude_patterns = [
     "_dev",
     "_build",
     "README.md",
+]
+
+html_css_files = [
+    "https://assets.ubuntu.com/v1/d86746ef-cookie_banner.css",
+]
+
+html_js_files = [
+    "https://assets.ubuntu.com/v1/287a5e8f-bundle.js",
 ]
 
 rst_prolog = """

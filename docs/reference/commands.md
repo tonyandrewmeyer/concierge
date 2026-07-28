@@ -72,8 +72,8 @@ sudo concierge restore [flags]
 
 :::{important}
 Restore removes everything Concierge would install, regardless of whether it
-was on the machine beforehand. See the [explanation of prepare and
-restore](../explanation/prepare-and-restore) for the reasoning.
+was on the machine beforehand. See [what Concierge is
+for](../explanation/what-is-concierge) for the reasoning.
 :::
 
 ## `concierge status`

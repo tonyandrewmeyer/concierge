@@ -13,6 +13,5 @@ Background and context for how Concierge thinks about the machines it manages.
 :maxdepth: 1
 
 what-is-concierge
-prepare-and-restore
 security
 ```

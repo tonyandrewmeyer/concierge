@@ -30,7 +30,6 @@ sudo concierge prepare -p dev
 The full documentation lives at
 **<https://canonical.github.io/concierge/>** and covers:
 
-- a [tutorial](https://canonical.github.io/concierge/tutorial/) for new users;
 - [how-to guides](https://canonical.github.io/concierge/how-to/) for common
   tasks such as [writing a custom
   config](https://canonical.github.io/concierge/how-to/write-a-custom-config/);

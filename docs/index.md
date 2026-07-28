@@ -20,11 +20,6 @@ reverses it.
 ::::{grid} 1 1 2 2
 :gutter: 3
 
-:::{grid-item-card} [Tutorial](tutorial/index)
-
-**Start here** — a hands-on introduction to Concierge for new users.
-:::
-
 :::{grid-item-card} [How-to guides](how-to/index)
 
 **Step-by-step guides** covering common tasks such as writing a custom
@@ -58,7 +53,6 @@ Concierge is a member of the Ubuntu family and released under the
 :hidden:
 :maxdepth: 1
 
-tutorial/index
 how-to/index
 reference/index
 explanation/index

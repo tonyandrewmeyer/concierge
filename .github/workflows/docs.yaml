@@ -2,7 +2,7 @@ name: Docs
 
 on:
   push:
-    branches: [main, docs/initial-diataxis]
+    branches: [main]
     paths:
       - 'docs/**'
       - 'presets/**'
@@ -62,22 +62,3 @@ jobs:
           python-version: "3.12"
       - name: Build HTML
         run: make -C docs html
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0
-        with:
-          path: docs/_build
-
-  deploy:
-    if: >-
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-      && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/docs/initial-diataxis')
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128  # v5.0.0

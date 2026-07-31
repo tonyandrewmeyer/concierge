@@ -27,18 +27,16 @@ sudo concierge prepare -p dev
 
 ## Documentation
 
-The full documentation lives at
-**<https://canonical.github.io/concierge/>** and covers:
+The full documentation lives in [`docs/`](docs/) and covers:
 
-- [how-to guides](https://canonical.github.io/concierge/how-to/) for common
-  tasks such as [writing a custom
-  config](https://canonical.github.io/concierge/how-to/write-a-custom-config/);
-- [reference](https://canonical.github.io/concierge/reference/) for commands,
-  the configuration schema, environment variables, and the built-in presets;
-- [explanation](https://canonical.github.io/concierge/explanation/) of what
-  Concierge is for and why `prepare` and `restore` are strict opposites.
+- [how-to guides](docs/how-to/) for common tasks such as [writing a custom
+  config](docs/how-to/write-a-custom-config.md);
+- [reference](docs/reference/) for commands, the configuration schema,
+  environment variables, and the built-in presets;
+- [explanation](docs/explanation/) of what Concierge is for and why `prepare`
+  and `restore` are strict opposites.
 
-To build the docs locally:
+To build and browse the docs locally:
 
 ```shell
 make -C docs run

@@ -23,7 +23,7 @@ reverses it.
 :::{grid-item-card} [How-to guides](how-to/index)
 
 **Step-by-step guides** covering common tasks such as writing a custom
-config, providing cloud credentials, or previewing changes.
+config or providing cloud credentials.
 :::
 
 :::{grid-item-card} [Reference](reference/index)

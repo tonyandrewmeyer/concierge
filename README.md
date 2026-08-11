@@ -223,12 +223,18 @@ providers:
     # (Optional): MicroK8s addons to enable.
     addons:
       - <addon>[:<params>]
-    # (Optional): Configure an image registry mirror (e.g., for Docker Hub).
-    # Useful in environments with registry access restrictions or rate limits.
+    # (Optional): Configure an image registry (a Docker Hub mirror, or a
+    # private registry such as ghcr.io).
+    # Useful in environments with registry access restrictions or rate limits,
+    # and for handing pull credentials to CI runners.
     # Values support environment variable interpolation (e.g., $VAR or ${VAR}).
     image-registry:
-      # URL of the registry mirror.
+      # URL of the registry (mirror endpoint, or the registry itself).
       url: <url>
+      # (Optional): Target registry hostname to configure. Defaults to
+      # `docker.io` — set to another host (e.g. `ghcr.io`) to configure
+      # credentials or a mirror for that registry instead of Docker Hub.
+      registry: <hostname>
       # (Optional): Username for registry authentication.
       username: <username>
       # (Optional): Password for registry authentication.
@@ -252,12 +258,18 @@ providers:
     features:
       <feature>:
         <key>: <value>
-    # (Optional): Configure an image registry mirror (e.g., for Docker Hub).
-    # Useful in environments with registry access restrictions or rate limits.
+    # (Optional): Configure an image registry (a Docker Hub mirror, or a
+    # private registry such as ghcr.io).
+    # Useful in environments with registry access restrictions or rate limits,
+    # and for handing pull credentials to CI runners.
     # Values support environment variable interpolation (e.g., $VAR or ${VAR}).
     image-registry:
-      # URL of the registry mirror.
+      # URL of the registry (mirror endpoint, or the registry itself).
       url: <url>
+      # (Optional): Target registry hostname to configure. Defaults to
+      # `docker.io` — set to another host (e.g. `ghcr.io`) to configure
+      # credentials or a mirror for that registry instead of Docker Hub.
+      registry: <hostname>
       # (Optional): Username for registry authentication.
       username: <username>
       # (Optional): Password for registry authentication.
@@ -403,11 +415,13 @@ providers:
         cidrs: 10.64.140.43/32
     bootstrap-constraints:
       root-disk: 2G
-    # Configure a Docker Hub mirror with authentication
+    # Provide pull credentials for a private ghcr.io registry directly
+    # (docker.io remains untouched — nothing else in this config mirrors it).
     image-registry:
-      url: https://registry.example.com
-      username: ${REGISTRY_USER}
-      password: ${REGISTRY_PASS}
+      registry: ghcr.io
+      url: https://ghcr.io
+      username: ${GHCR_USER}
+      password: ${GHCR_PAT}
 
   lxd:
     enable: true

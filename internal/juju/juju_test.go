@@ -100,7 +100,7 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 			expectedCommands: []string{
 				"snap install juju",
 				"sudo -u test-user juju show-controller concierge-lxd",
-				"sudo -u test-user -g lxd juju bootstrap localhost concierge-lxd --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true",
+				"sudo -u test-user -g lxd juju bootstrap localhost concierge-lxd --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true --config bootstrap-timeout=1800",
 				"sudo -u test-user juju add-model -c concierge-lxd testing",
 				fmt.Sprintf("sudo -u test-user juju set-model-constraints -m concierge-lxd:testing arch=%s", goArchToJujuArch(runtime.GOARCH)),
 			},

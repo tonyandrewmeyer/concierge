@@ -1,4 +1,9 @@
 juju:
+  # The default 20-minute bootstrap timeout is too short when both LXD
+  # and Kubernetes controllers are bootstrapped on the same host (issue
+  # #70); pin a longer one so the preset works out of the box on busy
+  # GHA hosts.
+  extra-bootstrap-args: --config bootstrap-timeout=1800
   model-defaults:
     test-mode: "true"
     automatically-retry-hooks: "false"

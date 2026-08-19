@@ -3,6 +3,7 @@ package providers
 import (
 	"fmt"
 	"log/slog"
+	"net"
 	"path"
 	"strings"
 	"time"
@@ -15,6 +16,17 @@ import (
 // Default channel from which MicroK8s is installed when the latest strict
 // version cannot be determined.
 const defaultMicroK8sChannel = "1.32-strict/stable"
+
+// fallbackMetalLBIPRange is the range MetalLB is configured with when the
+// addons list contains a bare "metallb" entry, no explicit range is given
+// in the config, and interface-based auto-detection also fails. It targets
+// Canonical's internal network and is preserved here only for backwards
+// compatibility with historical deployments that relied on it.
+const fallbackMetalLBIPRange = "10.64.140.43-10.64.140.49"
+
+// interfaceAddrs is stubbed in tests to make MetalLB range auto-detection
+// deterministic without touching the host's actual network configuration.
+var interfaceAddrs = net.InterfaceAddrs
 
 // NewMicroK8s constructs a new MicroK8s provider instance.
 func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
@@ -31,6 +43,7 @@ func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
 	return &MicroK8s{
 		Channel:              channel,
 		Addons:               config.Providers.MicroK8s.Addons,
+		MetalLBIPRange:       config.Providers.MicroK8s.MetalLBIPRange,
 		ImageRegistry:        config.Providers.MicroK8s.ImageRegistry,
 		bootstrap:            config.Providers.MicroK8s.Bootstrap,
 		modelDefaults:        config.Providers.MicroK8s.ModelDefaults,
@@ -45,9 +58,10 @@ func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
 
 // MicroK8s represents a MicroK8s install on a given machine.
 type MicroK8s struct {
-	Channel       string
-	Addons        []string
-	ImageRegistry config.ImageRegistryConfig
+	Channel        string
+	Addons         []string
+	MetalLBIPRange string
+	ImageRegistry  config.ImageRegistryConfig
 
 	bootstrap            bool
 	modelDefaults        map[string]string
@@ -222,9 +236,10 @@ func (m *MicroK8s) enableAddons() error {
 	for _, addon := range m.Addons {
 		enableArg := addon
 
-		// If the addon is MetalLB, add the predefined IP range
+		// A bare "metallb" needs an IP range appended for the addon to be
+		// usable; users may pass "metallb:<range>" directly to bypass this.
 		if addon == "metallb" {
-			enableArg = "metallb:10.64.140.43-10.64.140.49"
+			enableArg = "metallb:" + m.resolveMetalLBIPRange()
 		}
 
 		cmd := system.NewCommand("microk8s", []string{"enable", enableArg})
@@ -235,6 +250,145 @@ func (m *MicroK8s) enableAddons() error {
 	}
 
 	return nil
+}
+
+// resolveMetalLBIPRange returns the IP range to advertise via MetalLB when
+// the addon is enabled without an explicit range. Preference order:
+// (1) explicit configuration, (2) auto-detection from the host's primary
+// interface, (3) a hardcoded Canonical-internal fallback range.
+func (m *MicroK8s) resolveMetalLBIPRange() string {
+	if m.MetalLBIPRange != "" {
+		slog.Debug("Using configured MetalLB IP range", "range", m.MetalLBIPRange)
+		return m.MetalLBIPRange
+	}
+
+	if detected, err := detectMetalLBIPRange(); err == nil {
+		slog.Info("Auto-detected MetalLB IP range from host interface", "range", detected)
+		return detected
+	} else {
+		slog.Warn(
+			"Could not auto-detect a MetalLB IP range; falling back to the Canonical-internal default. "+
+				"Set providers.microk8s.metallb-ip-range in your concierge.yaml to override.",
+			"fallback", fallbackMetalLBIPRange,
+			"detection_error", err,
+		)
+	}
+
+	return fallbackMetalLBIPRange
+}
+
+// detectMetalLBIPRange picks a small range of IPs at the top of the first
+// non-loopback, non-private-bridge IPv4 subnet attached to the host. The
+// intent is to give MetalLB a set of IPs on the same L2 segment as the
+// host while avoiding addresses already in use by DHCP-managed clients or
+// by the host itself. The range is best-effort and can be overridden via
+// the metallb-ip-range configuration option.
+func detectMetalLBIPRange() (string, error) {
+	addrs, err := interfaceAddrs()
+	if err != nil {
+		return "", fmt.Errorf("failed to list host interface addresses: %w", err)
+	}
+
+	for _, addr := range addrs {
+		ipNet, ok := addr.(*net.IPNet)
+		if !ok {
+			continue
+		}
+		ip4 := ipNet.IP.To4()
+		if ip4 == nil {
+			continue
+		}
+		if ip4.IsLoopback() || ip4.IsLinkLocalUnicast() || ip4.IsUnspecified() {
+			continue
+		}
+		ones, bits := ipNet.Mask.Size()
+		// Skip point-to-point / single-host masks (no room for a range) and
+		// masks so large the "top of subnet" heuristic would grab public
+		// address space; /8 is generous but rules out obviously wrong nets.
+		if bits != 32 || ones < 8 || ones > 30 {
+			continue
+		}
+		start, end, err := topOfSubnet(ipNet, ip4, 5)
+		if err != nil {
+			continue
+		}
+		return fmt.Sprintf("%s-%s", start, end), nil
+	}
+
+	return "", fmt.Errorf("no suitable IPv4 interface found for MetalLB auto-detection")
+}
+
+// topOfSubnet returns a range of `count` consecutive IPv4 addresses at the
+// top of ipNet, ending just below the broadcast address and skipping the
+// host's own IP if it falls within that window. It returns an error if the
+// subnet is too small for a range of the requested size.
+func topOfSubnet(ipNet *net.IPNet, hostIP net.IP, count int) (net.IP, net.IP, error) {
+	network := ipNet.IP.Mask(ipNet.Mask).To4()
+	mask := net.IP(ipNet.Mask).To4()
+	if network == nil || mask == nil {
+		return nil, nil, fmt.Errorf("subnet is not IPv4")
+	}
+
+	broadcast := make(net.IP, 4)
+	for i := 0; i < 4; i++ {
+		broadcast[i] = network[i] | ^mask[i]
+	}
+
+	// end is broadcast - 1; start is end - (count - 1).
+	end := decIP(broadcast)
+	start := end
+	for i := 1; i < count; i++ {
+		start = decIP(start)
+	}
+
+	// If the window would collide with the network address or leave no
+	// gap for the host, the subnet is too small to be useful.
+	if !ipNet.Contains(start) || bytesLE(start, network) {
+		return nil, nil, fmt.Errorf("subnet %s too small for a %d-address MetalLB range", ipNet, count)
+	}
+
+	// Nudge the window down if the host IP sits inside it, so MetalLB
+	// never advertises the concierge host's own address.
+	host := hostIP.To4()
+	if host != nil && !bytesLE(host, decIP(start)) && !bytesLE(end, decIP(host)) {
+		for i := 0; i < count; i++ {
+			end = decIP(end)
+			start = decIP(start)
+		}
+		if !ipNet.Contains(start) || bytesLE(start, network) {
+			return nil, nil, fmt.Errorf("subnet %s too small once host IP %s is excluded", ipNet, host)
+		}
+	}
+
+	return start, end, nil
+}
+
+func decIP(ip net.IP) net.IP {
+	out := make(net.IP, 4)
+	copy(out, ip.To4())
+	for i := 3; i >= 0; i-- {
+		if out[i] > 0 {
+			out[i]--
+			return out
+		}
+		out[i] = 0xff
+	}
+	return out
+}
+
+// bytesLE reports whether a <= b as unsigned 4-byte integers.
+func bytesLE(a, b net.IP) bool {
+	a4 := a.To4()
+	b4 := b.To4()
+	for i := 0; i < 4; i++ {
+		if a4[i] < b4[i] {
+			return true
+		}
+		if a4[i] > b4[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // enableNonRootUserControl ensures the current user is in the correct POSIX group

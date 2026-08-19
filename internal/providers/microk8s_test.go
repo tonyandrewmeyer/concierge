@@ -1,6 +1,8 @@
 package providers
 
 import (
+	"fmt"
+	"net"
 	"os"
 	"path"
 	"reflect"
@@ -17,6 +19,36 @@ var defaultAddons []string = []string{
 	"dns",
 	"rbac",
 	"metallb:10.64.140.43-10.64.140.49",
+}
+
+// stubInterfaceAddrs replaces the interfaceAddrs package var for the
+// duration of a test, restoring it via t.Cleanup.
+func stubInterfaceAddrs(t *testing.T, addrs []net.Addr, err error) {
+	t.Helper()
+	prev := interfaceAddrs
+	interfaceAddrs = func() ([]net.Addr, error) { return addrs, err }
+	t.Cleanup(func() { interfaceAddrs = prev })
+}
+
+// mustIPNet parses a CIDR and fails the test if it does not.
+func mustIPNet(t *testing.T, cidr string) *net.IPNet {
+	t.Helper()
+	_, ipNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		t.Fatalf("failed to parse CIDR %q: %v", cidr, err)
+	}
+	return ipNet
+}
+
+// hostAddr builds a *net.IPNet whose IP is the host address (not the
+// masked network address), matching what net.InterfaceAddrs returns.
+func hostAddr(t *testing.T, ip string, cidr string) *net.IPNet {
+	t.Helper()
+	parsed := net.ParseIP(ip)
+	if parsed == nil {
+		t.Fatalf("failed to parse IP %q", ip)
+	}
+	return &net.IPNet{IP: parsed, Mask: mustIPNet(t, cidr).Mask}
 }
 
 func TestNewMicroK8s(t *testing.T) {
@@ -243,6 +275,138 @@ func TestMicroK8sPrepareWithImageRegistryAndAuth(t *testing.T) {
 
 	if !strings.Contains(hostsToml, "Authorization = [\"Basic") {
 		t.Fatalf("expected hosts.toml to contain authorization header, got: %v", hostsToml)
+	}
+}
+
+// TestMicroK8sBareMetalLBUsesConfiguredRange verifies that a bare "metallb"
+// entry in the addons list is expanded using the configured
+// metallb-ip-range, in preference to auto-detection or the fallback.
+func TestMicroK8sBareMetalLBUsesConfiguredRange(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.MicroK8s.Channel = "1.31-strict/stable"
+	cfg.Providers.MicroK8s.Addons = []string{"metallb"}
+	cfg.Providers.MicroK8s.MetalLBIPRange = "192.168.99.240-192.168.99.245"
+
+	// Stub the detector to a value that would clearly change the command
+	// if the configured range were ignored.
+	stubInterfaceAddrs(t, []net.Addr{hostAddr(t, "10.0.0.2", "10.0.0.0/24")}, nil)
+
+	sys := system.NewMockSystem()
+	uk8s := NewMicroK8s(sys, cfg)
+	if err := uk8s.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+
+	want := "microk8s enable metallb:192.168.99.240-192.168.99.245"
+	if !slices.Contains(sys.ExecutedCommands, want) {
+		t.Fatalf("expected commands to contain %q, got: %v", want, sys.ExecutedCommands)
+	}
+}
+
+// TestMicroK8sBareMetalLBAutoDetectsRange verifies that a bare "metallb"
+// entry falls back to auto-detection when no explicit range is configured.
+func TestMicroK8sBareMetalLBAutoDetectsRange(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.MicroK8s.Channel = "1.31-strict/stable"
+	cfg.Providers.MicroK8s.Addons = []string{"metallb"}
+
+	stubInterfaceAddrs(t, []net.Addr{
+		&net.IPNet{IP: net.IPv4(127, 0, 0, 1), Mask: net.CIDRMask(8, 32)},
+		hostAddr(t, "192.168.1.42", "192.168.1.0/24"),
+	}, nil)
+
+	sys := system.NewMockSystem()
+	uk8s := NewMicroK8s(sys, cfg)
+	if err := uk8s.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Top 5 addresses of 192.168.1.0/24 excluding broadcast: .250-.254.
+	// Host .42 is well below the window, so no shift.
+	want := "microk8s enable metallb:192.168.1.250-192.168.1.254"
+	if !slices.Contains(sys.ExecutedCommands, want) {
+		t.Fatalf("expected commands to contain %q, got: %v", want, sys.ExecutedCommands)
+	}
+}
+
+// TestMicroK8sBareMetalLBFallsBackWhenDetectionFails covers the last-resort
+// path: bare "metallb", no config, and detection returns nothing usable.
+func TestMicroK8sBareMetalLBFallsBackWhenDetectionFails(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.MicroK8s.Channel = "1.31-strict/stable"
+	cfg.Providers.MicroK8s.Addons = []string{"metallb"}
+
+	stubInterfaceAddrs(t, nil, fmt.Errorf("mock: no interfaces"))
+
+	sys := system.NewMockSystem()
+	uk8s := NewMicroK8s(sys, cfg)
+	if err := uk8s.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+
+	want := "microk8s enable metallb:" + fallbackMetalLBIPRange
+	if !slices.Contains(sys.ExecutedCommands, want) {
+		t.Fatalf("expected commands to contain %q, got: %v", want, sys.ExecutedCommands)
+	}
+}
+
+// TestDetectMetalLBIPRange exercises the range-derivation heuristic across
+// a few subnet shapes and interface layouts.
+func TestDetectMetalLBIPRange(t *testing.T) {
+	tests := []struct {
+		name    string
+		addrs   []net.Addr
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "skips loopback and picks first usable /24",
+			addrs: []net.Addr{
+				&net.IPNet{IP: net.IPv4(127, 0, 0, 1), Mask: net.CIDRMask(8, 32)},
+				hostAddr(t, "10.0.0.5", "10.0.0.0/24"),
+			},
+			want: "10.0.0.250-10.0.0.254",
+		},
+		{
+			name: "shifts window down when host IP falls inside it",
+			addrs: []net.Addr{
+				hostAddr(t, "10.0.0.252", "10.0.0.0/24"),
+			},
+			want: "10.0.0.245-10.0.0.249",
+		},
+		{
+			name: "skips subnets too small to hold a 5-address range",
+			addrs: []net.Addr{
+				hostAddr(t, "10.0.0.1", "10.0.0.0/30"),
+				hostAddr(t, "192.168.7.20", "192.168.7.20/28"),
+			},
+			// /28 containing .20 is .16-.31; top 5 excluding broadcast is .26-.30.
+			want: "192.168.7.26-192.168.7.30",
+		},
+		{
+			name:    "no interfaces yields an error",
+			addrs:   nil,
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			stubInterfaceAddrs(t, tc.addrs, nil)
+			got, err := detectMetalLBIPRange()
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got range %q", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tc.want {
+				t.Fatalf("expected %q, got %q", tc.want, got)
+			}
+		})
 	}
 }
 

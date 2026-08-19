@@ -387,7 +387,16 @@ providers:
       - hostpath-storage
       - dns
       - rbac
-      - metallb:10.64.140.43-10.64.140.49
+      # A bare "metallb" entry is expanded to "metallb:<range>" using either
+      # the metallb-ip-range option below, an auto-detected range from the
+      # host's primary interface, or a Canonical-internal default (in that
+      # order). Pass "metallb:<start>-<end>" here directly to skip all of
+      # that and use an explicit range.
+      - metallb
+    # Override the MetalLB IP range used for a bare "metallb" addon entry.
+    # Handy on CI runners where auto-detection picks a subnet MetalLB can
+    # not actually advertise on.
+    metallb-ip-range: 10.64.140.43-10.64.140.49
     # Configure a Docker Hub mirror using an environment variable
     image-registry:
       url: $DOCKERHUB_MIRROR

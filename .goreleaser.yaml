@@ -4,7 +4,8 @@ before:
   hooks:
     - go mod tidy
 builds:
-  - main: .
+  - id: concierge
+    main: .
     binary: concierge
     mod_timestamp: "{{ .CommitTimestamp }}"
     env:
@@ -69,6 +70,13 @@ snapcrafts:
       - source: presets/microk8s.yaml
         destination: presets/microk8s.yaml
         mode: 0644
+
+archives:
+  - id: concierge
+    ids:
+      - concierge
+    formats:
+      - tar.gz
 
 checksum:
   name_template: "checksums.txt"

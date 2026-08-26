@@ -1,0 +1,57 @@
+name: Scheduled govulncheck
+
+# The `lint` job in push.yaml already runs govulncheck on every push and
+# pull request, but that only catches new CVEs when someone next opens a
+# PR. Between PRs, freshly-disclosed vulnerabilities against unchanged
+# pinned dependencies go unnoticed until the post-release scan. Run
+# govulncheck on a weekly schedule so those get flagged as they land,
+# rather than at release time.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # min (0-59) / hour (0-23) / day (1-31) / month (1-12) / weekday (SUN-SAT)
+    - cron: '17 6 * * MON'
+
+permissions: {}
+
+jobs:
+  govulncheck:
+    name: Scan Go dependencies for known vulnerabilities
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6
+        with:
+          go-version-file: 'go.mod'
+          cache: false
+
+      - name: Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          govulncheck ./...
+
+  open-issue-on-failure-if-scheduled:
+    if: ${{ failure() && github.event_name == 'schedule' }}
+    needs: [govulncheck]
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Create issue on failure
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh issue create \
+            --repo "$REPO" \
+            --title "Scheduled workflow '$WORKFLOW_NAME' failed" \
+            --body "Scheduled workflow '$WORKFLOW_NAME' failed: $RUN_URL"

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"os/user"
+	"runtime/debug"
 
 	"github.com/canonical/concierge/internal/securitylog"
 	"github.com/spf13/pflag"
@@ -15,8 +16,35 @@ var (
 	commit  string = "dev"
 )
 
+// resolveVersion fills in version/commit from the Go module build info when
+// they weren't set via ldflags (e.g. `go install github.com/.../concierge@vX.Y.Z`,
+// which doesn't run our goreleaser build). It leaves them untouched otherwise,
+// since ldflags (used by our released binaries and the snap) are more precise.
+func resolveVersion() {
+	if version != "dev" {
+		return
+	}
+
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return
+	}
+
+	if info.Main.Version != "" && info.Main.Version != "(devel)" {
+		version = info.Main.Version
+	}
+
+	for _, setting := range info.Settings {
+		if setting.Key == "vcs.revision" {
+			commit = setting.Value
+		}
+	}
+}
+
 // Execute runs the root command and exits the program if it fails.
 func Execute() {
+	resolveVersion()
+
 	// Configure the SEC0045 security event logger so that audit events carry
 	// the concierge version in their appid. Events are emitted as structured
 	// JSON to the system journal via syslog(3), tagged "concierge", so the

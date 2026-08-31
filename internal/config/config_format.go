@@ -77,7 +77,7 @@ type googleConfig struct {
 
 // ImageRegistryConfig represents configuration for an image registry.
 //
-// The Registry field names the target registry (e.g. "ghcr.io"); when empty
+// The Registry field names the target registry (such as "ghcr.io"); when empty
 // it defaults to "docker.io" for backward compatibility with configs that
 // only ever mirrored Docker Hub. Setting it to something else lets users
 // point at a private registry directly — for example, to hand a k8s or

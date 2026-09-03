@@ -174,7 +174,7 @@ environment variables or a credentials file instead.
 
 ## Decommissioning
 
-`concierge restore` kills the Juju controllers it bootstrapped, removes the
+`concierge restore` destroys the Juju controllers it bootstrapped, removes the
 snaps and packages it installed, and deletes `~/.local/share/juju` and
 `~/.kube`.
 

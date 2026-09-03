@@ -35,7 +35,7 @@ flowchart LR
     Concierge -->|security events| Journal
 ```
 
-Three boundaries matter.
+Its trust boundaries follow from that position.
 
 The first is the jump to root. Concierge is invoked with `sudo`, and everything it does afterwards runs with full privileges. It executes its steps as shell commands, which is deliberate: Concierge is a wrapper around the same commands you would otherwise run by hand.
 

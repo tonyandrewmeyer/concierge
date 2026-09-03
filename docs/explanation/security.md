@@ -59,6 +59,10 @@ and then changes their ownership to the invoking user. See
 Concierge opens no listening ports and runs no background process. Once it
 exits, you interact with the tools it installed directly.
 
+Concierge is a classic snap, so snapd doesn't confine it. Classic confinement
+is what lets it manage other snaps, run `apt`, and write outside its own
+directories.
+
 ## Secure by design
 
 Concierge adds no privileges beyond those needed to install and configure the

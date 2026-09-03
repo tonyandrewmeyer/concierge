@@ -110,9 +110,8 @@ Concierge doesn't encrypt anything at rest. The confidentiality of the files
 listed in [](#files-concierge-writes) rests on their permissions and on the
 host's own encryption.
 
-> See more:
->  - [Debian | SecureApt](https://wiki.debian.org/SecureApt)
->  - [Snap | Security policies](https://snapcraft.io/docs/security-policies)
+See more: [Debian | SecureApt](https://wiki.debian.org/SecureApt) and
+[Snap | Security policies](https://snapcraft.io/docs/security-policies).
 
 ## Configuring and operating
 
@@ -137,10 +136,10 @@ The image registry password in a config file expands environment variables, so
 `password: ${REGISTRY_PASSWORD}` reads the value at run time. Prefer that to
 writing the password into the file.
 
-> See also:
->  - [Juju | Harden your deployment](https://documentation.ubuntu.com/juju/3.6/howto/manage-your-juju-deployment/harden-your-juju-deployment/)
->  - [Canonical K8s | Hardening guide](https://documentation.ubuntu.com/canonical-kubernetes/release-1.32/snap/howto/security/hardening/)
->  - [LXD | Security](https://documentation.ubuntu.com/lxd/stable-5.21/explanation/security/)
+See also:
+[Juju | Harden your deployment](https://documentation.ubuntu.com/juju/3.6/howto/manage-your-juju-deployment/harden-your-juju-deployment/),
+[Canonical K8s | Hardening guide](https://documentation.ubuntu.com/canonical-kubernetes/release-1.32/snap/howto/security/hardening/),
+and [LXD | Security](https://documentation.ubuntu.com/lxd/stable-5.21/explanation/security/).
 
 ## Logging and monitoring
 

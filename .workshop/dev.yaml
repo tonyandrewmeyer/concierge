@@ -3,6 +3,11 @@ base: ubuntu@24.04
 sdks:
   - name: go
     channel: 1.26/stable
+  # The Pi agent harness needs Node 22.19 or newer; 24.04 ships Node 18. The
+  # store SDK is a cached volume, where installing Node by hand in a hook is
+  # ~60s of apt and network on every single launch.
+  - name: node
+    channel: 22/stable
   - name: project-tools
 
 actions:

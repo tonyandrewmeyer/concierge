@@ -1,7 +1,0 @@
-# Node and npm are required by the Pi agent harness, which needs Node 22.19 or
-# newer. Ubuntu 24.04 ships Node 18, so install from NodeSource rather than
-# relying on the distro packages.
-apt-get update
-apt-get install -y ca-certificates curl gnupg
-curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-apt-get install -y nodejs

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path"
+	"regexp"
 	"strings"
 	"time"
 
@@ -204,9 +205,13 @@ func (k *K8s) init() error {
 	if k.needsBootstrap() {
 		k.handleExistingContainerd()
 		cmd := system.NewCommand("k8s", []string{"bootstrap"})
-		_, err := system.RunWithRetries(k.system, cmd, 5*time.Minute)
+		// The k8s snap verifies its preconditions before it changes anything on
+		// the machine. Those checks cannot start passing while concierge waits,
+		// so retrying them just repeats the same output for five minutes.
+		cmd.PermanentError = preInitFailurePattern
+		output, err := system.RunWithRetries(k.system, cmd, 5*time.Minute)
 		if err != nil {
-			return err
+			return bootstrapError(output, err)
 		}
 	}
 
@@ -214,6 +219,33 @@ func (k *K8s) init() error {
 	_, err := system.RunWithRetries(k.system, cmd, 5*time.Minute)
 
 	return err
+}
+
+// preInitFailurePattern matches the output of `k8s bootstrap` when the snap's
+// pre-init checks fail, which is a permanent failure rather than a transient one.
+const preInitFailurePattern = `pre-init checks failed`
+
+// portInUse matches the port availability complaints in the pre-init check output,
+// capturing the port number and the service that needs it.
+var portInUse = regexp.MustCompile(`port (\d+) \(needed by: ([^)]+)\) is already in use`)
+
+// bootstrapError turns a `k8s bootstrap` failure into an actionable error where
+// concierge can explain it, and returns the original error where it cannot.
+func bootstrapError(output []byte, err error) error {
+	matches := portInUse.FindAllSubmatch(output, -1)
+	if len(matches) == 0 {
+		return err
+	}
+
+	ports := make([]string, 0, len(matches))
+	for _, m := range matches {
+		ports = append(ports, fmt.Sprintf("%s (%s)", m[1], m[2]))
+	}
+
+	return fmt.Errorf(
+		"K8s cannot be bootstrapped because ports it requires are already in use by other processes: %s. Identify the processes with `sudo ss -lntp`, stop or remove them (a separately installed etcd is a common cause), then run concierge again",
+		strings.Join(ports, ", "),
+	)
 }
 
 // configureFeatures iterates over the specified features, enabling and configuring them.

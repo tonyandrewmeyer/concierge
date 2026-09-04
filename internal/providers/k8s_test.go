@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -404,5 +405,31 @@ func TestK8sBuildHostsTomlWithAuth(t *testing.T) {
 
 	if !strings.Contains(hostsToml, "Authorization = [\"Basic") {
 		t.Fatalf("expected hosts.toml to contain authorization header, got: %v", hostsToml)
+	}
+}
+
+func TestK8sBootstrapErrorPortsInUse(t *testing.T) {
+	output := []byte("Bootstrap config verification failed: pre-init checks failed for node: " +
+		"Encountered error(s) while verifying port availability for Kubernetes services: " +
+		"port 2379 (needed by: etcd) is already in use\nport 2380 (needed by: etcd-peer) is already in use")
+
+	err := bootstrapError(output, fmt.Errorf("exit status 1"))
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+
+	for _, want := range []string{"2379 (etcd)", "2380 (etcd-peer)", "ss -lntp"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("expected error to mention %q, got: %s", want, err)
+		}
+	}
+}
+
+func TestK8sBootstrapErrorUnrecognisedOutput(t *testing.T) {
+	original := fmt.Errorf("exit status 1")
+
+	err := bootstrapError([]byte("something else went wrong"), original)
+	if !errors.Is(err, original) {
+		t.Fatalf("expected the original error to be returned, got: %v", err)
 	}
 }

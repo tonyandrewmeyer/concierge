@@ -80,10 +80,19 @@ jobs:
           ARCH: ${{ inputs.arch }}
           BASES: ${{ inputs.bases }}
         run: |
-          # Enumerate suite names from a single system; the same suites apply
-          # to every system declared on the github-ci backend, so the (system,
-          # suite) cross-product is built here as a flat include list.
-          list="$(spread -list github-ci:ubuntu-24.04 | sed "s|github-ci:ubuntu-24.04:tests/||g" | jq -r -ncR '[inputs | select(length>0)]')"
+          # Enumerate suite names per system rather than once: a task that
+          # declares `systems: [ubuntu-26.04]` is invisible to a listing of
+          # 24.04 and would never be scheduled anywhere, silently. Asking
+          # spread per base keeps the matrix exactly what spread would run.
+          per_base='[]'
+          for base in $(echo "$BASES" | jq -r '.[].base'); do
+            suites="$(spread -list "github-ci:$base" | sed "s|github-ci:$base:tests/||g" | jq -r -ncR '[inputs | select(length>0)]')"
+            per_base=$(jq -c -n --argjson acc "$per_base" --argjson s "$suites" --arg b "$base" \
+              '$acc + [$s[] | {suite: ., base: $b}]')
+          done
+          # The suite skip-list below is keyed on suite name alone, so keep a
+          # flat list of the distinct names for it to filter.
+          list=$(echo "$per_base" | jq -c '[.[].suite] | unique')
           case $ARCH in
             ppc64le|s390x)
               skip='{
@@ -119,11 +128,17 @@ jobs:
           ]'
 
           # critical/extras are GHA matrix configs: {"include": [ {"suite": "...", "base": "...", "runner": "..."}, ... ]}.
-          # The cross-product of $bases x $suites is split by membership in critical_suites.
-          critical=$(jq -c -n --argjson suites "$list" --argjson bases "$BASES" --argjson crit "$critical_suites" \
-            '{include: [ $bases[] as $b | $suites[] | select(. as $s | $crit | index($s)) | {suite: ., base: $b.base, runner: $b.runner} ]}')
-          extras=$(jq -c -n --argjson suites "$list" --argjson bases "$BASES" --argjson crit "$critical_suites" \
-            '{include: [ $bases[] as $b | $suites[] | select(. as $s | $crit | index($s) | not) | {suite: ., base: $b.base, runner: $b.runner} ]}')
+          # $per_base already holds the (system, suite) pairs spread would run;
+          # dropping the arch-skipped names and attaching each base's runner
+          # gives the include list, split by membership in critical_suites.
+          pairs=$(jq -c -n --argjson pb "$per_base" --argjson keep "$list" --argjson bases "$BASES" \
+            '[ $pb[] as $p | $bases[] | select(.base == $p.base) |
+               select($p.suite as $s | $keep | index($s)) |
+               {suite: $p.suite, base: $p.base, runner: .runner} ]')
+          critical=$(jq -c -n --argjson pairs "$pairs" --argjson crit "$critical_suites" \
+            '{include: [ $pairs[] | select(.suite as $s | $crit | index($s)) ]}')
+          extras=$(jq -c -n --argjson pairs "$pairs" --argjson crit "$critical_suites" \
+            '{include: [ $pairs[] | select(.suite as $s | $crit | index($s) | not) ]}')
           echo "critical=$critical"
           echo "extras=$extras"
           echo "critical=$critical" >> $GITHUB_OUTPUT

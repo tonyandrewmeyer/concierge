@@ -1,10 +1,12 @@
 package providers
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
@@ -22,12 +24,16 @@ var defaultAddons []string = []string{
 }
 
 // stubInterfaceAddrs replaces the interfaceAddrs package var for the
-// duration of a test, restoring it via t.Cleanup.
+// duration of a test, restoring it via t.Cleanup. It also neutralises
+// primaryInterfaceAddrs, so a test that stubs the address list is not
+// quietly reading the real host's default route as well; a test that cares
+// about the default route stubs it afterwards.
 func stubInterfaceAddrs(t *testing.T, addrs []net.Addr, err error) {
 	t.Helper()
 	prev := interfaceAddrs
 	interfaceAddrs = func() ([]net.Addr, error) { return addrs, err }
 	t.Cleanup(func() { interfaceAddrs = prev })
+	stubPrimaryInterfaceAddrs(t, nil, errors.New("no default route in tests"))
 }
 
 // mustIPNet parses a CIDR and fails the test if it does not.
@@ -428,5 +434,109 @@ capabilities = ["pull", "resolve"]
 
 	if hostsToml != expectedContent {
 		t.Fatalf("expected:\n%v\ngot:\n%v", expectedContent, hostsToml)
+	}
+}
+
+// stubPrimaryInterfaceAddrs replaces the primaryInterfaceAddrs package var
+// for the duration of a test.
+func stubPrimaryInterfaceAddrs(t *testing.T, addrs []net.Addr, err error) {
+	t.Helper()
+	prev := primaryInterfaceAddrs
+	primaryInterfaceAddrs = func() ([]net.Addr, error) { return addrs, err }
+	t.Cleanup(func() { primaryInterfaceAddrs = prev })
+}
+
+func mustCIDR(t *testing.T, cidr string) net.Addr {
+	t.Helper()
+	ip, ipNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		t.Fatalf("bad test CIDR %q: %v", cidr, err)
+	}
+	ipNet.IP = ip
+	return ipNet
+}
+
+// The default-route interface wins even when it is not first in the list
+// that net.InterfaceAddrs returns. Without this, which bridge is picked on a
+// multi-interface host is down to enumeration order.
+func TestDetectMetalLBIPRangePrefersDefaultRoute(t *testing.T) {
+	bridges := []net.Addr{
+		mustCIDR(t, "10.205.224.1/24"),
+		mustCIDR(t, "10.153.100.1/24"),
+	}
+	primary := []net.Addr{mustCIDR(t, "192.168.132.147/24")}
+	stubInterfaceAddrs(t, bridges, nil)
+	stubPrimaryInterfaceAddrs(t, primary, nil)
+
+	got, err := detectMetalLBIPRange()
+	if err != nil {
+		t.Fatalf("detectMetalLBIPRange() error: %v", err)
+	}
+	if want := "192.168.132.250-192.168.132.254"; got != want {
+		t.Errorf("detectMetalLBIPRange() = %q, want %q", got, want)
+	}
+}
+
+// When the default route can't be determined we fall back to scanning every
+// interface, which is the behaviour this had before.
+func TestDetectMetalLBIPRangeFallsBackWithoutDefaultRoute(t *testing.T) {
+	stubInterfaceAddrs(t, []net.Addr{mustCIDR(t, "10.205.224.1/24")}, nil)
+	stubPrimaryInterfaceAddrs(t, nil, errors.New("no default route"))
+
+	got, err := detectMetalLBIPRange()
+	if err != nil {
+		t.Fatalf("detectMetalLBIPRange() error: %v", err)
+	}
+	if want := "10.205.224.250-10.205.224.254"; got != want {
+		t.Errorf("detectMetalLBIPRange() = %q, want %q", got, want)
+	}
+}
+
+func TestDefaultRouteInterface(t *testing.T) {
+	for name, tc := range map[string]struct {
+		contents string
+		want     string
+		wantErr  bool
+	}{
+		"default route present": {
+			contents: "Iface\tDestination\tGateway\tFlags\tRefCnt\tUse\tMetric\tMask\n" +
+				"enp5s0\t00000000\t0102A8C0\t0003\t0\t0\t100\t00000000\n" +
+				"lxdbr0\t00E0A80A\t00000000\t0001\t0\t0\t0\t00FFFFFF\n",
+			want: "enp5s0",
+		},
+		"default route not up is skipped": {
+			contents: "Iface\tDestination\tGateway\tFlags\n" +
+				"enp5s0\t00000000\t0102A8C0\t0002\t\n",
+			wantErr: true,
+		},
+		"no default route": {
+			contents: "Iface\tDestination\tGateway\tFlags\n" +
+				"lxdbr0\t00E0A80A\t00000000\t0001\t\n",
+			wantErr: true,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "route")
+			if err := os.WriteFile(path, []byte(tc.contents), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			prev := procNetRoute
+			procNetRoute = path
+			t.Cleanup(func() { procNetRoute = prev })
+
+			got, err := defaultRouteInterface()
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("defaultRouteInterface() = %q, want an error", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("defaultRouteInterface() error: %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("defaultRouteInterface() = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }

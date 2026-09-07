@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,9 +26,20 @@ const defaultMicroK8sChannel = "1.32-strict/stable"
 // compatibility with historical deployments that relied on it.
 const fallbackMetalLBIPRange = "10.64.140.43-10.64.140.49"
 
+// routeFlagUp is RTF_UP from the kernel routing table flags.
+const routeFlagUp = 0x0001
+
 // interfaceAddrs is stubbed in tests to make MetalLB range auto-detection
 // deterministic without touching the host's actual network configuration.
 var interfaceAddrs = net.InterfaceAddrs
+
+// primaryInterfaceAddrs returns the addresses of the interface carrying the
+// default route, or nil if it cannot be determined. Stubbed in tests.
+var primaryInterfaceAddrs = defaultRouteAddrs
+
+// procNetRoute is the kernel routing table, read to find the interface that
+// carries the default route. Overridden in tests.
+var procNetRoute = "/proc/net/route"
 
 // NewMicroK8s constructs a new MicroK8s provider instance.
 func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
@@ -289,6 +302,13 @@ func detectMetalLBIPRange() (string, error) {
 		return "", fmt.Errorf("failed to list host interface addresses: %w", err)
 	}
 
+	// Prefer the interface carrying the default route. Without this the
+	// choice is whatever net.InterfaceAddrs happens to return first, which
+	// on a host with several bridges (a CI runner, say) is arbitrary.
+	if primary, err := primaryInterfaceAddrs(); err == nil && len(primary) > 0 {
+		addrs = append(primary, addrs...)
+	}
+
 	for _, addr := range addrs {
 		ipNet, ok := addr.(*net.IPNet)
 		if !ok {
@@ -434,4 +454,51 @@ func computeDefaultChannel(s system.Worker) string {
 	}
 
 	return defaultMicroK8sChannel
+}
+
+// defaultRouteAddrs returns the addresses of the interface that carries the
+// default route. This is what "the primary interface" means on a host with
+// more than one candidate: the one packets leave by.
+func defaultRouteAddrs() ([]net.Addr, error) {
+	name, err := defaultRouteInterface()
+	if err != nil {
+		return nil, err
+	}
+	iface, err := net.InterfaceByName(name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to look up interface %q: %w", name, err)
+	}
+	// A tunnel is a common default route (a VPN, a tailnet) and is exactly
+	// the wrong answer here: MetalLB advertises over L2, so it needs a
+	// broadcast segment. Leave those to the general scan.
+	if iface.Flags&net.FlagPointToPoint != 0 || iface.Flags&net.FlagBroadcast == 0 {
+		return nil, fmt.Errorf("default route interface %q is not a broadcast segment", name)
+	}
+	return iface.Addrs()
+}
+
+// defaultRouteInterface returns the name of the interface carrying the IPv4
+// default route, read from the kernel routing table.
+func defaultRouteInterface() (string, error) {
+	contents, err := os.ReadFile(procNetRoute)
+	if err != nil {
+		return "", fmt.Errorf("failed to read %s: %w", procNetRoute, err)
+	}
+	// Columns are Iface, Destination, Gateway, Flags, ... The default route
+	// is the entry whose destination is 0.0.0.0, written as eight zeroes.
+	for line := range strings.SplitSeq(strings.TrimSpace(string(contents)), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 4 || fields[0] == "Iface" {
+			continue
+		}
+		if fields[1] != "00000000" {
+			continue
+		}
+		flags, err := strconv.ParseUint(fields[3], 16, 32)
+		if err != nil || flags&routeFlagUp == 0 {
+			continue
+		}
+		return fields[0], nil
+	}
+	return "", fmt.Errorf("no default route found in %s", procNetRoute)
 }

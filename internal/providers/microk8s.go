@@ -21,9 +21,10 @@ const defaultMicroK8sChannel = "1.32-strict/stable"
 
 // fallbackMetalLBIPRange is the range MetalLB is configured with when the
 // addons list contains a bare "metallb" entry, no explicit range is given
-// in the config, and interface-based auto-detection also fails. It targets
-// Canonical's internal network and is preserved here only for backwards
-// compatibility with historical deployments that relied on it.
+// in the config, and auto-detection also fails. It is the example range
+// from MicroK8s' own metallb addon prompt, which is where concierge got
+// it, and is kept only so behaviour does not change for anyone who was
+// relying on the previously hardcoded value.
 const fallbackMetalLBIPRange = "10.64.140.43-10.64.140.49"
 
 // routeFlagUp is RTF_UP from the kernel routing table flags.
@@ -276,11 +277,11 @@ func (m *MicroK8s) resolveMetalLBIPRange() string {
 	}
 
 	if detected, err := detectMetalLBIPRange(); err == nil {
-		slog.Info("Auto-detected MetalLB IP range from host interface", "range", detected)
+		slog.Info("Using the host's own address as the MetalLB IP range", "range", detected)
 		return detected
 	} else {
 		slog.Warn(
-			"Could not auto-detect a MetalLB IP range; falling back to the Canonical-internal default. "+
+			"Could not auto-detect a MetalLB IP range; falling back to the MicroK8s example range. "+
 				"Set providers.microk8s.metallb-ip-range in your concierge.yaml to override.",
 			"fallback", fallbackMetalLBIPRange,
 			"detection_error", err,
@@ -290,12 +291,19 @@ func (m *MicroK8s) resolveMetalLBIPRange() string {
 	return fallbackMetalLBIPRange
 }
 
-// detectMetalLBIPRange picks a small range of IPs at the top of the first
-// non-loopback, non-private-bridge IPv4 subnet attached to the host. The
-// intent is to give MetalLB a set of IPs on the same L2 segment as the
-// host while avoiding addresses already in use by DHCP-managed clients or
-// by the host itself. The range is best-effort and can be overridden via
-// the metallb-ip-range configuration option.
+// detectMetalLBIPRange returns the host's own primary IPv4 address as a
+// one-address MetalLB pool ("ip-ip").
+//
+// MetalLB's L2 mode answers ARP for the pool addresses, so they have to be
+// on a segment where that answer is believed. Handing it an address the
+// host already owns is the only choice that cannot collide with anything
+// else on the network, and it is what we tell users to do in the Traefik
+// "Gateway Address Unavailable" how-to. Taking a slice of the surrounding
+// subnet instead is a guess about what is free, and on the large shared
+// subnet of a cloud CI runner it is a bad one.
+//
+// The cost is that a single address only serves one LoadBalancer service.
+// Set metallb-ip-range to hand over a wider range when that is not enough.
 func detectMetalLBIPRange() (string, error) {
 	addrs, err := interfaceAddrs()
 	if err != nil {
@@ -321,66 +329,10 @@ func detectMetalLBIPRange() (string, error) {
 		if ip4.IsLoopback() || ip4.IsLinkLocalUnicast() || ip4.IsUnspecified() {
 			continue
 		}
-		ones, bits := ipNet.Mask.Size()
-		// Skip point-to-point / single-host masks (no room for a range) and
-		// masks so large the "top of subnet" heuristic would grab public
-		// address space; /8 is generous but rules out obviously wrong nets.
-		if bits != 32 || ones < 8 || ones > 30 {
-			continue
-		}
-		start, end, err := topOfSubnet(ipNet, ip4, 5)
-		if err != nil {
-			continue
-		}
-		return fmt.Sprintf("%s-%s", start, end), nil
+		return fmt.Sprintf("%s-%s", ip4, ip4), nil
 	}
 
 	return "", fmt.Errorf("no suitable IPv4 interface found for MetalLB auto-detection")
-}
-
-// topOfSubnet returns a range of `count` consecutive IPv4 addresses at the
-// top of ipNet, ending just below the broadcast address and skipping the
-// host's own IP if it falls within that window. It returns an error if the
-// subnet is too small for a range of the requested size.
-func topOfSubnet(ipNet *net.IPNet, hostIP net.IP, count int) (net.IP, net.IP, error) {
-	network := ipNet.IP.Mask(ipNet.Mask).To4()
-	mask := net.IP(ipNet.Mask).To4()
-	if network == nil || mask == nil {
-		return nil, nil, fmt.Errorf("subnet is not IPv4")
-	}
-
-	broadcast := make(net.IP, 4)
-	for i := 0; i < 4; i++ {
-		broadcast[i] = network[i] | ^mask[i]
-	}
-
-	// end is broadcast - 1; start is end - (count - 1).
-	end := decIP(broadcast)
-	start := end
-	for i := 1; i < count; i++ {
-		start = decIP(start)
-	}
-
-	// If the window would collide with the network address or leave no
-	// gap for the host, the subnet is too small to be useful.
-	if !ipNet.Contains(start) || bytesLE(start, network) {
-		return nil, nil, fmt.Errorf("subnet %s too small for a %d-address MetalLB range", ipNet, count)
-	}
-
-	// Nudge the window down if the host IP sits inside it, so MetalLB
-	// never advertises the concierge host's own address.
-	host := hostIP.To4()
-	if host != nil && !bytesLE(host, decIP(start)) && !bytesLE(end, decIP(host)) {
-		for i := 0; i < count; i++ {
-			end = decIP(end)
-			start = decIP(start)
-		}
-		if !ipNet.Contains(start) || bytesLE(start, network) {
-			return nil, nil, fmt.Errorf("subnet %s too small once host IP %s is excluded", ipNet, host)
-		}
-	}
-
-	return start, end, nil
 }
 
 func decIP(ip net.IP) net.IP {

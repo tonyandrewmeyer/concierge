@@ -327,9 +327,8 @@ func TestMicroK8sBareMetalLBAutoDetectsRange(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Top 5 addresses of 192.168.1.0/24 excluding broadcast: .250-.254.
-	// Host .42 is well below the window, so no shift.
-	want := "microk8s enable metallb:192.168.1.250-192.168.1.254"
+	// The host's own address, as a one-address pool.
+	want := "microk8s enable metallb:192.168.1.42-192.168.1.42"
 	if !slices.Contains(sys.ExecutedCommands, want) {
 		t.Fatalf("expected commands to contain %q, got: %v", want, sys.ExecutedCommands)
 	}
@@ -366,28 +365,27 @@ func TestDetectMetalLBIPRange(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "skips loopback and picks first usable /24",
+			name: "skips loopback and uses the host's own address",
 			addrs: []net.Addr{
 				&net.IPNet{IP: net.IPv4(127, 0, 0, 1), Mask: net.CIDRMask(8, 32)},
 				hostAddr(t, "10.0.0.5", "10.0.0.0/24"),
 			},
-			want: "10.0.0.250-10.0.0.254",
+			want: "10.0.0.5-10.0.0.5",
 		},
 		{
-			name: "shifts window down when host IP falls inside it",
-			addrs: []net.Addr{
-				hostAddr(t, "10.0.0.252", "10.0.0.0/24"),
-			},
-			want: "10.0.0.245-10.0.0.249",
-		},
-		{
-			name: "skips subnets too small to hold a 5-address range",
+			name: "a tiny subnet is still fine, the pool is one address",
 			addrs: []net.Addr{
 				hostAddr(t, "10.0.0.1", "10.0.0.0/30"),
-				hostAddr(t, "192.168.7.20", "192.168.7.20/28"),
 			},
-			// /28 containing .20 is .16-.31; top 5 excluding broadcast is .26-.30.
-			want: "192.168.7.26-192.168.7.30",
+			want: "10.0.0.1-10.0.0.1",
+		},
+		{
+			name: "skips link-local",
+			addrs: []net.Addr{
+				hostAddr(t, "169.254.3.4", "169.254.0.0/16"),
+				hostAddr(t, "192.168.7.20", "192.168.7.0/24"),
+			},
+			want: "192.168.7.20-192.168.7.20",
 		},
 		{
 			name:    "no interfaces yields an error",
@@ -472,7 +470,7 @@ func TestDetectMetalLBIPRangePrefersDefaultRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("detectMetalLBIPRange() error: %v", err)
 	}
-	if want := "192.168.132.250-192.168.132.254"; got != want {
+	if want := "192.168.132.147-192.168.132.147"; got != want {
 		t.Errorf("detectMetalLBIPRange() = %q, want %q", got, want)
 	}
 }
@@ -487,7 +485,7 @@ func TestDetectMetalLBIPRangeFallsBackWithoutDefaultRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("detectMetalLBIPRange() error: %v", err)
 	}
-	if want := "10.205.224.250-10.205.224.254"; got != want {
+	if want := "10.205.224.1-10.205.224.1"; got != want {
 		t.Errorf("detectMetalLBIPRange() = %q, want %q", got, want)
 	}
 }

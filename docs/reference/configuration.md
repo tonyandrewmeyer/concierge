@@ -49,8 +49,10 @@ providers:
     addons:
       - <addon>[:<params>]
     # (Optional) IP range for a bare "metallb" addon entry. A bare entry is
-    # expanded to "metallb:<range>" using this value, then an auto-detected
-    # range from the host's primary interface, then a built-in default.
+    # expanded to "metallb:<range>" using this value if set, otherwise the
+    # host's own primary address as a one-address pool. Set this to hand
+    # MetalLB a wider range, which it needs for more than one LoadBalancer
+    # service at a time.
     metallb-ip-range: <start>-<end>
     # (Optional) Image registry mirror. Values support ${VAR} interpolation.
     image-registry:

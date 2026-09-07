@@ -34,11 +34,24 @@ func resolveVersion() {
 		version = info.Main.Version
 	}
 
+	// vcs.revision is only stamped when building from a VCS checkout. A
+	// `go install <module>@<version>` builds from the module proxy, so there
+	// is no revision to report and commit stays at its zero value.
 	for _, setting := range info.Settings {
 		if setting.Key == "vcs.revision" {
 			commit = setting.Value
 		}
 	}
+}
+
+// versionString is what `concierge --version` reports. The commit is omitted
+// when we don't have one, rather than printing a placeholder next to a real
+// version, which is the usual case for `go install <module>@<version>`.
+func versionString() string {
+	if commit == "" || commit == "dev" {
+		return version
+	}
+	return fmt.Sprintf("%s (%s)", version, commit)
 }
 
 // Execute runs the root command and exits the program if it fails.

@@ -208,6 +208,13 @@ func (k *K8s) init() error {
 		// The k8s snap verifies its preconditions before it changes anything on
 		// the machine. Those checks cannot start passing while concierge waits,
 		// so retrying them just repeats the same output for five minutes.
+		//
+		// Port availability is the one pre-init check that could in principle
+		// clear on its own, so it is worth saying that it does not need a
+		// window: `concierge restore` returns only once snapd has finished
+		// removing the k8s snap, and 2379, 2380 and 6443 are already free at
+		// that point, so a `restore` immediately followed by a `prepare`
+		// bootstraps without a conflict.
 		cmd.PermanentError = preInitFailurePattern
 		output, err := system.RunWithRetries(k.system, cmd, 5*time.Minute)
 		if err != nil {
@@ -226,8 +233,14 @@ func (k *K8s) init() error {
 const preInitFailurePattern = `pre-init checks failed`
 
 // portInUse matches the port availability complaints in the pre-init check output,
-// capturing the port number and the service that needs it.
+// capturing the port number and the K8s service that needs it. The name is the
+// service that wants the port, never the process that currently holds it: the
+// snap has no idea what that is, and neither do we.
 var portInUse = regexp.MustCompile(`port (\d+) \(needed by: ([^)]+)\) is already in use`)
+
+// etcdPorts are the ports a separately installed etcd takes, which is the
+// conflict people actually hit.
+var etcdPorts = map[string]bool{"2379": true, "2380": true}
 
 // bootstrapError turns a `k8s bootstrap` failure into an actionable error where
 // concierge can explain it, and returns the original error where it cannot.
@@ -238,13 +251,31 @@ func bootstrapError(output []byte, err error) error {
 	}
 
 	ports := make([]string, 0, len(matches))
+	etcd := false
 	for _, m := range matches {
-		ports = append(ports, fmt.Sprintf("%s (%s)", m[1], m[2]))
+		// "needed by" rather than a bare parenthetical: the name is the K8s
+		// service that wants the port. Rendering it as `6443 (kube-apiserver)`
+		// inside a sentence about other processes reads as a claim that a
+		// kube-apiserver is holding it, and sends the reader looking for one
+		// that does not exist. `ss` is what answers that question.
+		ports = append(ports, fmt.Sprintf("%s (needed by %s)", m[1], m[2]))
+		if etcdPorts[string(m[1])] {
+			etcd = true
+		}
+	}
+
+	hint := ""
+	if etcd {
+		hint = " (a separately installed etcd is a common cause)"
 	}
 
 	return fmt.Errorf(
-		"K8s cannot be bootstrapped because ports it requires are already in use by other processes: %s. Identify the processes with `sudo ss -lntp`, stop or remove them (a separately installed etcd is a common cause), then run concierge again",
+		"K8s cannot be bootstrapped because ports it needs are already in use: %s. "+
+			"Identify the processes holding them with `sudo ss -lntp`, then stop or "+
+			"remove them and run concierge again%s: %w",
 		strings.Join(ports, ", "),
+		hint,
+		err,
 	)
 }
 

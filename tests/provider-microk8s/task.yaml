@@ -6,14 +6,16 @@ execute: |
   pushd "${SPREAD_PATH}/${SPREAD_TASK}"
 
   # This test should be fast, so timing out means we are hanging. That used to
-  # be the expected outcome, because of the AppArmor denial behind
-  # https://github.com/canonical/microk8s/issues/5394, which the channel bump
-  # in concierge.yaml avoids.
+  # be the expected outcome: on a kernel with AppArmor network_v9 mediation,
+  # MicroK8s strict up to and including 1.33 cannot load its containerd
+  # profile at all ("apparmor_parser: Unable to replace
+  # cri-containerd.apparmor.d. Profile doesn't conform to protocol"), so
+  # containerd never starts. The channel bump in concierge.yaml avoids it.
   timeout 10m "$SPREAD_PATH"/concierge --trace prepare --extra-snaps="yq"
 
   list="$(snap list microk8s)"
   echo $list | MATCH microk8s
-  echo $list | MATCH 1.32-strict/stable
+  echo $list | MATCH 1.34-strict/stable
 
   list="$(snap list)"
   echo $list | MATCH juju

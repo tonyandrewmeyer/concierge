@@ -53,7 +53,7 @@ Concierge adds no privileges beyond those needed to install and configure the sa
 
 The tool is declarative, so the set of privileged actions is determined by configuration you can read, diff, and commit before it runs. `concierge prepare --dry-run` prints what would happen without changing anything.
 
-Credentials are never written to the security event log. When Concierge records that it wrote a credentials file, the event carries the path and the number of clouds, not the contents.
+Credential file contents are never written to the security event log. When Concierge records that it wrote a credentials file, the event carries the path and the number of clouds, not the contents.
 
 (files-concierge-writes)=
 ## Files Concierge writes

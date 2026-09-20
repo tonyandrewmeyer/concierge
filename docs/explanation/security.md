@@ -92,7 +92,7 @@ To harden a machine provisioned by Concierge:
 
 Concierge resolves settings from the environment first, then command-line flags, then the config file or preset. An environment variable therefore overrides a flag, which is the opposite of what you may expect. See {ref}`reference-environment-variables`.
 
-The image registry password in a config file expands environment variables, so `password: ${REGISTRY_PASSWORD}` reads the value at run time. Prefer that to writing the password into the file.
+The image registry password in a config file expands environment variables, so `password: ${REGISTRY_PASSWORD}` reads the value at run time. Prefer that to writing the password into the config file: it keeps the secret out of version control. It doesn't keep the secret off the machine, though. Concierge expands the value when it reads the config, and writes the expanded configuration to `~/.cache/concierge/concierge.yaml`.
 
 See also: [Juju | Harden your deployment](https://documentation.ubuntu.com/juju/3.6/howto/manage-your-juju-deployment/harden-your-juju-deployment/), [Canonical K8s | Hardening guide](https://documentation.ubuntu.com/canonical-kubernetes/release-1.32/snap/howto/security/hardening/), and [LXD | Security](https://documentation.ubuntu.com/lxd/stable-5.21/explanation/security/).
 

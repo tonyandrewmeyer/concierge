@@ -16,11 +16,14 @@ import (
 	"github.com/canonical/concierge/internal/system"
 )
 
+// The metallb range here is deliberately not the fallback range: these
+// fixtures cover the path where the user gives one, and an assertion
+// against the same string the default resolves to would pass either way.
 var defaultAddons []string = []string{
 	"hostpath-storage",
 	"dns",
 	"rbac",
-	"metallb:10.64.140.43-10.64.140.49",
+	"metallb:10.99.99.10-10.99.99.20",
 }
 
 // stubInterfaceAddrs replaces the interfaceAddrs package var for the
@@ -131,7 +134,7 @@ func TestMicroK8sPrepareCommands(t *testing.T) {
 		"microk8s enable hostpath-storage",
 		"microk8s enable dns",
 		"microk8s enable rbac",
-		"microk8s enable metallb:10.64.140.43-10.64.140.49",
+		"microk8s enable metallb:10.99.99.10-10.99.99.20",
 		"usermod -a -G snap_microk8s test-user",
 		"microk8s config",
 	}
@@ -213,7 +216,7 @@ func TestMicroK8sPrepareWithImageRegistry(t *testing.T) {
 		"microk8s enable hostpath-storage",
 		"microk8s enable dns",
 		"microk8s enable rbac",
-		"microk8s enable metallb:10.64.140.43-10.64.140.49",
+		"microk8s enable metallb:10.99.99.10-10.99.99.20",
 		"usermod -a -G snap_microk8s test-user",
 		"microk8s config",
 	}

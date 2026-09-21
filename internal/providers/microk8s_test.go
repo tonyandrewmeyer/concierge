@@ -36,25 +36,17 @@ func stubInterfaceAddrs(t *testing.T, addrs []net.Addr, err error) {
 	stubPrimaryInterfaceAddrs(t, nil, errors.New("no default route in tests"))
 }
 
-// mustIPNet parses a CIDR and fails the test if it does not.
-func mustIPNet(t *testing.T, cidr string) *net.IPNet {
+// hostAddr builds a *net.IPNet from a host CIDR, keeping the host address
+// rather than the masked network address, which is what
+// net.InterfaceAddrs returns.
+func hostAddr(t *testing.T, cidr string) *net.IPNet {
 	t.Helper()
-	_, ipNet, err := net.ParseCIDR(cidr)
+	ip, ipNet, err := net.ParseCIDR(cidr)
 	if err != nil {
-		t.Fatalf("failed to parse CIDR %q: %v", cidr, err)
+		t.Fatalf("bad test CIDR %q: %v", cidr, err)
 	}
+	ipNet.IP = ip
 	return ipNet
-}
-
-// hostAddr builds a *net.IPNet whose IP is the host address (not the
-// masked network address), matching what net.InterfaceAddrs returns.
-func hostAddr(t *testing.T, ip string, cidr string) *net.IPNet {
-	t.Helper()
-	parsed := net.ParseIP(ip)
-	if parsed == nil {
-		t.Fatalf("failed to parse IP %q", ip)
-	}
-	return &net.IPNet{IP: parsed, Mask: mustIPNet(t, cidr).Mask}
 }
 
 func TestNewMicroK8s(t *testing.T) {
@@ -295,7 +287,7 @@ func TestMicroK8sBareMetalLBUsesConfiguredRange(t *testing.T) {
 
 	// Stub the detector to a value that would clearly change the command
 	// if the configured range were ignored.
-	stubInterfaceAddrs(t, []net.Addr{hostAddr(t, "10.0.0.2", "10.0.0.0/24")}, nil)
+	stubInterfaceAddrs(t, []net.Addr{hostAddr(t, "10.0.0.2/24")}, nil)
 
 	sys := system.NewMockSystem()
 	uk8s := NewMicroK8s(sys, cfg)
@@ -318,7 +310,7 @@ func TestMicroK8sBareMetalLBUsesTheFallbackRange(t *testing.T) {
 	cfg.Providers.MicroK8s.Addons = []string{"metallb"}
 
 	stubInterfaceAddrs(t, []net.Addr{
-		hostAddr(t, "192.168.1.42", "192.168.1.0/24"),
+		hostAddr(t, "192.168.1.42/24"),
 	}, nil)
 
 	sys := system.NewMockSystem()
@@ -347,7 +339,7 @@ func TestMicroK8sMetalLBAutoDetectsRange(t *testing.T) {
 
 	stubInterfaceAddrs(t, []net.Addr{
 		&net.IPNet{IP: net.IPv4(127, 0, 0, 1), Mask: net.CIDRMask(8, 32)},
-		hostAddr(t, "192.168.1.42", "192.168.1.0/24"),
+		hostAddr(t, "192.168.1.42/24"),
 	}, nil)
 
 	sys := system.NewMockSystem()
@@ -398,22 +390,22 @@ func TestDetectMetalLBIPRange(t *testing.T) {
 			name: "skips loopback and uses the host's own address",
 			addrs: []net.Addr{
 				&net.IPNet{IP: net.IPv4(127, 0, 0, 1), Mask: net.CIDRMask(8, 32)},
-				hostAddr(t, "10.0.0.5", "10.0.0.0/24"),
+				hostAddr(t, "10.0.0.5/24"),
 			},
 			want: "10.0.0.5-10.0.0.5",
 		},
 		{
 			name: "a tiny subnet is still fine, the pool is one address",
 			addrs: []net.Addr{
-				hostAddr(t, "10.0.0.1", "10.0.0.0/30"),
+				hostAddr(t, "10.0.0.1/30"),
 			},
 			want: "10.0.0.1-10.0.0.1",
 		},
 		{
 			name: "skips link-local",
 			addrs: []net.Addr{
-				hostAddr(t, "169.254.3.4", "169.254.0.0/16"),
-				hostAddr(t, "192.168.7.20", "192.168.7.0/24"),
+				hostAddr(t, "169.254.3.4/16"),
+				hostAddr(t, "192.168.7.20/24"),
 			},
 			want: "192.168.7.20-192.168.7.20",
 		},
@@ -470,7 +462,7 @@ capabilities = ["pull", "resolve"]
 // can still answer: the scan's error is only fatal when nothing else did.
 func TestDetectMetalLBIPRangeFallsBackToThePrimaryInterface(t *testing.T) {
 	stubInterfaceAddrs(t, nil, errors.New("mock: no interfaces"))
-	stubPrimaryInterfaceAddrs(t, []net.Addr{mustCIDR(t, "192.168.1.42/24")}, nil)
+	stubPrimaryInterfaceAddrs(t, []net.Addr{hostAddr(t, "192.168.1.42/24")}, nil)
 
 	got, err := detectMetalLBIPRange()
 	if err != nil {
@@ -507,25 +499,15 @@ func stubPrimaryInterfaceAddrs(t *testing.T, addrs []net.Addr, err error) {
 	t.Cleanup(func() { primaryInterfaceAddrs = prev })
 }
 
-func mustCIDR(t *testing.T, cidr string) net.Addr {
-	t.Helper()
-	ip, ipNet, err := net.ParseCIDR(cidr)
-	if err != nil {
-		t.Fatalf("bad test CIDR %q: %v", cidr, err)
-	}
-	ipNet.IP = ip
-	return ipNet
-}
-
 // The default-route interface wins even when it is not first in the list
 // that net.InterfaceAddrs returns. Without this, which bridge is picked on a
 // multi-interface host is down to enumeration order.
 func TestDetectMetalLBIPRangePrefersDefaultRoute(t *testing.T) {
 	bridges := []net.Addr{
-		mustCIDR(t, "10.205.224.1/24"),
-		mustCIDR(t, "10.153.100.1/24"),
+		hostAddr(t, "10.205.224.1/24"),
+		hostAddr(t, "10.153.100.1/24"),
 	}
-	primary := []net.Addr{mustCIDR(t, "192.168.132.147/24")}
+	primary := []net.Addr{hostAddr(t, "192.168.132.147/24")}
 	stubInterfaceAddrs(t, bridges, nil)
 	stubPrimaryInterfaceAddrs(t, primary, nil)
 
@@ -541,7 +523,7 @@ func TestDetectMetalLBIPRangePrefersDefaultRoute(t *testing.T) {
 // When the default route can't be determined we fall back to scanning every
 // interface, which is the behaviour this had before.
 func TestDetectMetalLBIPRangeFallsBackWithoutDefaultRoute(t *testing.T) {
-	stubInterfaceAddrs(t, []net.Addr{mustCIDR(t, "10.205.224.1/24")}, nil)
+	stubInterfaceAddrs(t, []net.Addr{hostAddr(t, "10.205.224.1/24")}, nil)
 	stubPrimaryInterfaceAddrs(t, nil, errors.New("no default route"))
 
 	got, err := detectMetalLBIPRange()

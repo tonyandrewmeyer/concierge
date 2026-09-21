@@ -428,6 +428,23 @@ func defaultRouteAddrs() ([]net.Addr, error) {
 
 // defaultRouteInterface returns the name of the interface carrying the IPv4
 // default route, read from the kernel routing table.
+//
+// Issue #251 suggests `ip -4 -j route get 2.2.2.2 | jq -r '.[] | .prefsrc'`
+// instead, which asks the kernel the question directly and gets back the
+// source address it would actually use. Reading /proc/net/route keeps this
+// to a file read rather than a shell-out to two tools, at the cost of two
+// cases it gets wrong:
+//
+//   - A host whose default route lives in a table other than main -- an
+//     `ip rule` setup, or a multi-homed runner -- has no 00000000 row here
+//     at all, so detection falls through to the general interface scan.
+//   - Where the chosen interface carries more than one IPv4 address, the
+//     order iface.Addrs() returns them in decides which one is used;
+//     prefsrc would name one.
+//
+// Both are acceptable while this path is opt-in and its consumer is a
+// single-homed CI runner. If either starts to matter, `ip route get` is
+// the answer rather than more parsing.
 func defaultRouteInterface() (string, error) {
 	contents, err := os.ReadFile(procNetRoute)
 	if err != nil {

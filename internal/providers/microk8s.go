@@ -335,34 +335,6 @@ func detectMetalLBIPRange() (string, error) {
 	return "", fmt.Errorf("no suitable IPv4 interface found for MetalLB auto-detection")
 }
 
-func decIP(ip net.IP) net.IP {
-	out := make(net.IP, 4)
-	copy(out, ip.To4())
-	for i := 3; i >= 0; i-- {
-		if out[i] > 0 {
-			out[i]--
-			return out
-		}
-		out[i] = 0xff
-	}
-	return out
-}
-
-// bytesLE reports whether a <= b as unsigned 4-byte integers.
-func bytesLE(a, b net.IP) bool {
-	a4 := a.To4()
-	b4 := b.To4()
-	for i := 0; i < 4; i++ {
-		if a4[i] < b4[i] {
-			return true
-		}
-		if a4[i] > b4[i] {
-			return false
-		}
-	}
-	return true
-}
-
 // enableNonRootUserControl ensures the current user is in the correct POSIX group
 // that allows them to interact with MicroK8s.
 func (m *MicroK8s) enableNonRootUserControl() error {

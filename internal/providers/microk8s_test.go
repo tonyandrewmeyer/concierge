@@ -309,12 +309,41 @@ func TestMicroK8sBareMetalLBUsesConfiguredRange(t *testing.T) {
 	}
 }
 
-// TestMicroK8sBareMetalLBAutoDetectsRange verifies that a bare "metallb"
-// entry falls back to auto-detection when no explicit range is configured.
-func TestMicroK8sBareMetalLBAutoDetectsRange(t *testing.T) {
+// TestMicroK8sBareMetalLBUsesTheFallbackRange verifies that a bare "metallb"
+// entry with nothing configured gets the fixed example range, and does not
+// go looking at the host's own addresses.
+func TestMicroK8sBareMetalLBUsesTheFallbackRange(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Providers.MicroK8s.Channel = "1.31-strict/stable"
 	cfg.Providers.MicroK8s.Addons = []string{"metallb"}
+
+	stubInterfaceAddrs(t, []net.Addr{
+		hostAddr(t, "192.168.1.42", "192.168.1.0/24"),
+	}, nil)
+
+	sys := system.NewMockSystem()
+	uk8s := NewMicroK8s(sys, cfg)
+	if err := uk8s.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+
+	want := "microk8s enable metallb:" + fallbackMetalLBIPRange
+	if !slices.Contains(sys.ExecutedCommands, want) {
+		t.Fatalf("expected commands to contain %q, got: %v", want, sys.ExecutedCommands)
+	}
+	unwanted := "microk8s enable metallb:192.168.1.42-192.168.1.42"
+	if slices.Contains(sys.ExecutedCommands, unwanted) {
+		t.Fatalf("host address used without being asked for: %v", sys.ExecutedCommands)
+	}
+}
+
+// TestMicroK8sMetalLBAutoDetectsRange verifies that "auto" is what asks for
+// the host's own address.
+func TestMicroK8sMetalLBAutoDetectsRange(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.MicroK8s.Channel = "1.31-strict/stable"
+	cfg.Providers.MicroK8s.Addons = []string{"metallb"}
+	cfg.Providers.MicroK8s.MetalLBIPRange = metalLBIPRangeAuto
 
 	stubInterfaceAddrs(t, []net.Addr{
 		&net.IPNet{IP: net.IPv4(127, 0, 0, 1), Mask: net.CIDRMask(8, 32)},
@@ -334,12 +363,13 @@ func TestMicroK8sBareMetalLBAutoDetectsRange(t *testing.T) {
 	}
 }
 
-// TestMicroK8sBareMetalLBFallsBackWhenDetectionFails covers the last-resort
-// path: bare "metallb", no config, and detection returns nothing usable.
-func TestMicroK8sBareMetalLBFallsBackWhenDetectionFails(t *testing.T) {
+// TestMicroK8sMetalLBAutoFallsBackWhenDetectionFails covers "auto" on a host
+// where detection returns nothing usable.
+func TestMicroK8sMetalLBAutoFallsBackWhenDetectionFails(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Providers.MicroK8s.Channel = "1.31-strict/stable"
 	cfg.Providers.MicroK8s.Addons = []string{"metallb"}
+	cfg.Providers.MicroK8s.MetalLBIPRange = metalLBIPRangeAuto
 
 	stubInterfaceAddrs(t, nil, fmt.Errorf("mock: no interfaces"))
 

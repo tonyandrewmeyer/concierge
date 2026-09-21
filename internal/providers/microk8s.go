@@ -20,12 +20,17 @@ import (
 const defaultMicroK8sChannel = "1.32-strict/stable"
 
 // fallbackMetalLBIPRange is the range MetalLB is configured with when the
-// addons list contains a bare "metallb" entry, no explicit range is given
-// in the config, and auto-detection also fails. It is the example range
-// from MicroK8s' own metallb addon prompt, which is where concierge got
-// it, and is kept only so behaviour does not change for anyone who was
-// relying on the previously hardcoded value.
+// addons list contains a bare "metallb" entry and no range is given in the
+// config. It is the example range from MicroK8s' own metallb addon prompt,
+// which is where concierge got it, and it is the default because it is a
+// range no one is otherwise using: MetalLB hands the addresses out to
+// Services, so they have to be addresses nothing else answers on.
 const fallbackMetalLBIPRange = "10.64.140.43-10.64.140.49"
+
+// metalLBIPRangeAuto is the metallb-ip-range value that asks for the host's
+// own address instead of a fixed range. Opt-in: see detectMetalLBIPRange
+// for why it is not the default.
+const metalLBIPRangeAuto = "auto"
 
 // routeFlagUp is RTF_UP from the kernel routing table flags.
 const routeFlagUp = 0x0001
@@ -267,25 +272,28 @@ func (m *MicroK8s) enableAddons() error {
 }
 
 // resolveMetalLBIPRange returns the IP range to advertise via MetalLB when
-// the addon is enabled without an explicit range. Preference order:
-// (1) explicit configuration, (2) auto-detection from the host's primary
-// interface, (3) a hardcoded Canonical-internal fallback range.
+// the addon is enabled without an explicit range: the configured range, the
+// host's own address if the configuration asks for "auto", and otherwise
+// the example range MicroK8s itself suggests.
 func (m *MicroK8s) resolveMetalLBIPRange() string {
+	if m.MetalLBIPRange == metalLBIPRangeAuto {
+		if detected, err := detectMetalLBIPRange(); err == nil {
+			slog.Info("Using the host's own address as the MetalLB IP range", "range", detected)
+			return detected
+		} else {
+			slog.Warn(
+				"Could not auto-detect a MetalLB IP range; falling back to the MicroK8s example range. "+
+					"Set providers.microk8s.metallb-ip-range in your concierge.yaml to override.",
+				"fallback", fallbackMetalLBIPRange,
+				"detection_error", err,
+			)
+			return fallbackMetalLBIPRange
+		}
+	}
+
 	if m.MetalLBIPRange != "" {
 		slog.Debug("Using configured MetalLB IP range", "range", m.MetalLBIPRange)
 		return m.MetalLBIPRange
-	}
-
-	if detected, err := detectMetalLBIPRange(); err == nil {
-		slog.Info("Using the host's own address as the MetalLB IP range", "range", detected)
-		return detected
-	} else {
-		slog.Warn(
-			"Could not auto-detect a MetalLB IP range; falling back to the MicroK8s example range. "+
-				"Set providers.microk8s.metallb-ip-range in your concierge.yaml to override.",
-			"fallback", fallbackMetalLBIPRange,
-			"detection_error", err,
-		)
 	}
 
 	return fallbackMetalLBIPRange
@@ -295,15 +303,18 @@ func (m *MicroK8s) resolveMetalLBIPRange() string {
 // one-address MetalLB pool ("ip-ip").
 //
 // MetalLB's L2 mode answers ARP for the pool addresses, so they have to be
-// on a segment where that answer is believed. Handing it an address the
-// host already owns is the only choice that cannot collide with anything
-// else on the network, and it is what we tell users to do in the Traefik
-// "Gateway Address Unavailable" how-to. Taking a slice of the surrounding
-// subnet instead is a guess about what is free, and on the large shared
-// subnet of a cloud CI runner it is a bad one.
+// on a segment where that answer is believed, and on the large shared
+// subnet of a cloud CI runner a slice of the surrounding subnet is a guess
+// about what is free. The host's own address is the one address that is
+// certainly reachable, which is why this is offered at all.
 //
-// The cost is that a single address only serves one LoadBalancer service.
-// Set metallb-ip-range to hand over a wider range when that is not enough.
+// It is opt-in rather than the default because the address is not free: it
+// is the host's. MetalLB gives it to a Service, and the cluster's own
+// datapath then answers on it, so a LoadBalancer on a port the host also
+// serves takes that port over on the host's address - measured on microk8s
+// 1.35, where a Service on :8080 shadowed a process still listening on
+// 0.0.0.0:8080, with only 127.0.0.1 still reaching the host. A single
+// address also serves only one LoadBalancer Service.
 func detectMetalLBIPRange() (string, error) {
 	addrs, err := interfaceAddrs()
 	if err != nil {

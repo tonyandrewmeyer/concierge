@@ -89,10 +89,13 @@ type microk8sConfig struct {
 	Channel   string   `yaml:"channel"`
 	Addons    []string `yaml:"addons"`
 	// MetalLBIPRange is the IP range advertised by the MetalLB addon when it
-	// is enabled without an explicit range (i.e. the addons list contains a
-	// bare "metallb" entry). Format: "<start-ip>-<end-ip>". When empty,
-	// concierge auto-detects a range from the host's primary interface,
-	// falling back to a Canonical-internal default only if detection fails.
+	// is enabled without an explicit range (that is, the addons list contains
+	// a bare "metallb" entry). Format: "<start-ip>-<end-ip>", or "auto" to
+	// use the host's own address as a one-address pool. When empty, the
+	// example range from MicroK8s' own metallb prompt is used. The addresses
+	// are handed out to Services, so they have to be ones nothing else on the
+	// segment answers on; "auto" deliberately breaks that rule and is only
+	// safe when no LoadBalancer will claim a port the host also serves.
 	MetalLBIPRange       string              `yaml:"metallb-ip-range"`
 	ImageRegistry        ImageRegistryConfig `yaml:"image-registry"`
 	ModelDefaults        map[string]string   `yaml:"model-defaults"`

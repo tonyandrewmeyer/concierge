@@ -31,6 +31,14 @@ snapcrafts:
     base: core24
     confinement: classic
     grade: stable
+    # goreleaser can't see which branch a tag was cut from (a tag checkout is a
+    # detached HEAD), so route by version instead: 1.5.x goes to its own track
+    # rather than clobbering latest/stable with an older release.
+    channel_templates:
+      - "{{ if and (eq .Major 1) (eq .Minor 5) }}1.5{{ else }}latest{{ end }}/edge"
+      - "{{ if and (eq .Major 1) (eq .Minor 5) }}1.5{{ else }}latest{{ end }}/beta"
+      - "{{ if and (eq .Major 1) (eq .Minor 5) }}1.5{{ else }}latest{{ end }}/candidate"
+      - "{{ if and (eq .Major 1) (eq .Minor 5) }}1.5{{ else }}latest{{ end }}/stable"
     summary: A utility for configuring dev/test machines for charm development
     description: |
       concierge is an opinionated utility for provisioning charm development and testing machines.

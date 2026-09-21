@@ -1,11 +1,13 @@
 package providers
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
 	"os"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -316,19 +318,31 @@ func (m *MicroK8s) resolveMetalLBIPRange() string {
 // 0.0.0.0:8080, with only 127.0.0.1 still reaching the host. A single
 // address also serves only one LoadBalancer Service.
 func detectMetalLBIPRange() (string, error) {
-	addrs, err := interfaceAddrs()
-	if err != nil {
-		return "", fmt.Errorf("failed to list host interface addresses: %w", err)
-	}
-
 	// Prefer the interface carrying the default route. Without this the
 	// choice is whatever net.InterfaceAddrs happens to return first, which
-	// on a host with several bridges (a CI runner, say) is arbitrary.
-	if primary, err := primaryInterfaceAddrs(); err == nil && len(primary) > 0 {
-		addrs = append(primary, addrs...)
-	}
+	// on a host with several bridges (a CI runner, say) is arbitrary. It
+	// looks the interface up itself, so it can still answer when the
+	// general scan can't -- hence trying it first, and treating the scan's
+	// failure as fatal only if this came back with nothing.
+	primary, primaryErr := primaryInterfaceAddrs()
+	candidates := slices.Clone(primary)
 
-	for _, addr := range addrs {
+	addrs, err := interfaceAddrs()
+	if err != nil {
+		if len(candidates) == 0 {
+			return "", fmt.Errorf(
+				"failed to list host interface addresses: %w",
+				errors.Join(err, primaryErr),
+			)
+		}
+		slog.Debug(
+			"Could not list every host interface address; using the default-route interface alone",
+			"error", err,
+		)
+	}
+	candidates = append(candidates, addrs...)
+
+	for _, addr := range candidates {
 		ipNet, ok := addr.(*net.IPNet)
 		if !ok {
 			continue

@@ -465,6 +465,39 @@ capabilities = ["pull", "resolve"]
 	}
 }
 
+// TestDetectMetalLBIPRangeFallsBackToThePrimaryInterface covers the case
+// where the general interface scan fails but the default-route interface
+// can still answer: the scan's error is only fatal when nothing else did.
+func TestDetectMetalLBIPRangeFallsBackToThePrimaryInterface(t *testing.T) {
+	stubInterfaceAddrs(t, nil, errors.New("mock: no interfaces"))
+	stubPrimaryInterfaceAddrs(t, []net.Addr{mustCIDR(t, "192.168.1.42/24")}, nil)
+
+	got, err := detectMetalLBIPRange()
+	if err != nil {
+		t.Fatalf("expected the primary interface to answer, got: %v", err)
+	}
+	if want := "192.168.1.42-192.168.1.42"; got != want {
+		t.Fatalf("expected %q, got %q", want, got)
+	}
+}
+
+// TestDetectMetalLBIPRangeReportsBothFailures covers the case where neither
+// source has anything: the error names both.
+func TestDetectMetalLBIPRangeReportsBothFailures(t *testing.T) {
+	stubInterfaceAddrs(t, nil, errors.New("mock: no interfaces"))
+	stubPrimaryInterfaceAddrs(t, nil, errors.New("mock: no default route"))
+
+	_, err := detectMetalLBIPRange()
+	if err == nil {
+		t.Fatal("expected an error when neither source can answer")
+	}
+	for _, want := range []string{"mock: no interfaces", "mock: no default route"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("expected the error to mention %q, got: %v", want, err)
+		}
+	}
+}
+
 // stubPrimaryInterfaceAddrs replaces the primaryInterfaceAddrs package var
 // for the duration of a test.
 func stubPrimaryInterfaceAddrs(t *testing.T, addrs []net.Addr, err error) {

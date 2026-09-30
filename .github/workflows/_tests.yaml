@@ -137,3 +137,23 @@ jobs:
           SUITE: ${{ matrix.suite }}
         run: |
           spread -v "github-ci:ubuntu-24.04:tests/${SUITE}"
+
+  # Single status check covering every job above, so branch protection can
+  # require it instead of listing each (dynamically generated) spread suite.
+  # `always()` makes this job report failure, rather than being skipped, when
+  # a dependency fails: required checks treat a skipped job as passing.
+  all-tests:
+    name: All tests passed
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - binaries
+      - define-matrix
+      - spread-test
+    steps:
+      - name: Check that all tests passed
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "$RESULTS"
+          echo "$RESULTS" | jq -e 'all(. == "success")'

@@ -76,7 +76,7 @@ jobs:
       # with GitHub's attestation API and would need its own verification
       # story.
       - name: Attest release artifacts
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6  # 4.2.2
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6  # v4.2.2
         with:
           subject-path: "dist/*.tar.gz"
 

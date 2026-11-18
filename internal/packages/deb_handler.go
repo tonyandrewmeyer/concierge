@@ -1,8 +1,10 @@
 package packages
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/canonical/concierge/internal/system"
 )
@@ -98,8 +100,43 @@ func (h *DebHandler) installDeb(d *Deb) error {
 		return fmt.Errorf("failed to install apt package '%s': %w", d.Name, err)
 	}
 
-	slog.Info("Installed apt package", "package", d.Name)
+	h.logInstalled(d)
 	return nil
+}
+
+// logInstalled logs that a deb was installed, including the installed version
+// when it can be found.
+func (h *DebHandler) logInstalled(d *Deb) {
+	// Skip the lookup when the log line wouldn't be shown.
+	if !slog.Default().Enabled(context.Background(), slog.LevelInfo) {
+		return
+	}
+
+	attrs := []any{"package", d.Name}
+
+	// In a dry run nothing was installed, so there is no version to report.
+	if !system.IsDryRun(h.system) {
+		if version, err := h.installedVersion(d); err != nil {
+			slog.Debug("Could not look up apt package version", "package", d.Name, "error", err)
+		} else if version != "" {
+			attrs = append(attrs, "version", version)
+		}
+	}
+
+	slog.Info("Installed apt package", attrs...)
+}
+
+// installedVersion returns the version of the deb that dpkg has installed.
+func (h *DebHandler) installedVersion(d *Deb) (string, error) {
+	cmd := system.NewCommand("dpkg-query", []string{"--show", "--showformat=${Version}", d.Name})
+	cmd.ReadOnly = true
+
+	output, err := h.system.Run(cmd)
+	if err != nil {
+		return "", fmt.Errorf("failed to query version of apt package '%s': %w", d.Name, err)
+	}
+
+	return strings.TrimSpace(string(output)), nil
 }
 
 // Remove uninstalls the deb from the system with `apt`.

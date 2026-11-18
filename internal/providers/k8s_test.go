@@ -80,6 +80,7 @@ func TestK8sPrepareCommands(t *testing.T) {
 		"which iptables",
 		"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y update",
 		"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y install -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold iptables",
+		"dpkg-query --show '--showformat=${Version}' iptables",
 		fmt.Sprintf("snap install k8s --channel %s", defaultK8sChannel),
 		"snap install kubectl --channel stable",
 		"systemctl is-active containerd.service",

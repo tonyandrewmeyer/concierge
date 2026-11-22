@@ -118,7 +118,7 @@ func (h *DebHandler) logInstalled(d *Deb) {
 	if !system.IsDryRun(h.system) {
 		if version, err := h.installedVersion(d); err != nil {
 			slog.Debug("Could not look up apt package version", "package", d.Name, "error", err)
-		} else if version != "" {
+		} else {
 			attrs = append(attrs, "version", version)
 		}
 	}
@@ -136,7 +136,14 @@ func (h *DebHandler) installedVersion(d *Deb) (string, error) {
 		return "", fmt.Errorf("failed to query version of apt package '%s': %w", d.Name, err)
 	}
 
-	return strings.TrimSpace(string(output)), nil
+	// The command's stderr is mixed into its output, so only trust a single
+	// token: Debian versions never contain whitespace.
+	version := strings.TrimSpace(string(output))
+	if version == "" || strings.ContainsAny(version, " \t\r\n") {
+		return "", fmt.Errorf("unexpected dpkg-query output for apt package '%s': %q", d.Name, output)
+	}
+
+	return version, nil
 }
 
 // Remove uninstalls the deb from the system with `apt`.

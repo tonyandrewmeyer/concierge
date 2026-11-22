@@ -12,7 +12,11 @@ execute: |
   export CONCIERGE_EXTRA_DEBS="make,fortune"
 
   # Also add some extra debs at the CLI
-  "$SPREAD_PATH"/concierge --trace prepare --extra-debs "cowsay"
+  output=$("$SPREAD_PATH"/concierge --trace prepare --extra-debs "cowsay" 2>&1)
+  echo "$output"
+
+  # The install log lines carry the version dpkg reports
+  echo "$output" | MATCH "Installed apt package.*package=cowsay version=[0-9]"
 
   export PATH="/usr/games:$PATH"
 

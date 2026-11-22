@@ -84,3 +84,30 @@ func TestDebHandlerLogsWithoutVersionWhenLookupFails(t *testing.T) {
 		t.Fatalf("expected an install log line without a version, got: %s", output)
 	}
 }
+
+func TestDebHandlerLogsWithoutVersionOnUnexpectedOutput(t *testing.T) {
+	tests := map[string]string{
+		"empty":            "",
+		"stderr mixed in":  "dpkg-query: warning: something odd\n3.03+dfsg2-8\n",
+		"several versions": "3.03+dfsg2-8 3.03+dfsg2-9",
+	}
+
+	for name, output := range tests {
+		t.Run(name, func(t *testing.T) {
+			logs := captureLogs(t)
+
+			sys := system.NewMockSystem()
+			sys.MockCommandReturn("dpkg-query --show '--showformat=${Version}' cowsay", []byte(output), nil)
+
+			err := NewDebHandler(sys, []*Deb{NewDeb("cowsay")}).Prepare()
+			if err != nil {
+				t.Fatalf("unexpected version output should not fail the install: %v", err)
+			}
+
+			got := logs.String()
+			if !strings.Contains(got, `msg="Installed apt package" package=cowsay`) || strings.Contains(got, "version=") {
+				t.Fatalf("expected an install log line without a version, got: %s", got)
+			}
+		})
+	}
+}
